@@ -100,7 +100,7 @@
               <section class="panel recent-panel">
                 <div class="panel-heading"><div><p class="eyebrow">LATEST</p><h2>最近的周边</h2></div><button class="small-action" data-page-jump="items">全部 <span>→</span></button></div>
                 <div class="recent-list">
-                  <button class="item-row" data-open-item="loveLoveLove">
+                  <button class="item-row" data-open-item="love-love-love">
                     <div class="item-thumb product-thumb"><img src="love-love-love-cover.png" alt="奔跑 LOVE LOVE LOVE 单人款" /></div>
                     <span class="item-copy"><strong id="recentItemName">奔跑 · LOVE LOVE LOVE</strong><small id="recentItemMeta">单人款共 15 款 · 官方现货</small></span><span class="item-amount" id="recentItemPrice">¥79<span>/套</span></span>
                   </button>
@@ -110,11 +110,9 @@
           </section>
 
           <section class="page-section" id="itemsPage">
-            <div class="page-intro compact-intro"><div><p class="eyebrow">MERCHANDISE</p><h1>周边</h1><p class="intro-copy">每个批次的额度和去向，一眼看清。</p></div><div class="order-entry-actions"><button class="secondary-entry" data-open-modal="newItem"><span>✎</span> 编辑商品资料</button><button class="primary-button" data-open-modal="newOrder"><span>＋</span> 有人要了，去拍下</button></div></div>
-            <div class="section-toolbar"><div class="segmented"><button class="segment active">全部 <b>1</b></button><button class="segment">进行中 <b>1</b></button><button class="segment">已完成 <b>0</b></button></div><button class="filter-button">筛选 <span>⌄</span></button></div>
-            <div class="item-cards">
-              <article class="full-item-card featured-product" data-open-item="loveLoveLove"><div class="large-item-visual product-visual"><img src="love-love-love-cover.png" alt="奔跑 LOVE LOVE LOVE 单人款商品详情" /><span class="status-chip in-stock" id="itemStatus">官方现货</span></div><div class="full-item-body"><div class="full-item-top"><div><p class="eyebrow" id="variantCountLabel">TF 家族 · 已录入 1 个款式</p><h2 id="itemName">奔跑 · LOVE LOVE LOVE</h2></div><button class="more-button">⋯</button></div><div class="variant-switch" aria-label="周边款式"><button class="variant-option active" type="button"><span id="singleVariantLabel">单人款 · 共 15 款</span><strong id="singleVariantPrice">¥79<small>/套</small></strong><small id="singleVariantMeta">15 名成员 · 每 ID 每款限购 1 份</small></button><button class="variant-option add-variant" id="familyVariantButton" type="button" data-open-modal="addFamily"><span>＋ 添加</span><strong>家族款</strong><small>可单独填写价格和限购</small></button></div><div class="allocation-bar"><span class="alloc-sold" id="allocationSold" style="width: 0"></span><span class="alloc-stock" style="width: 0"></span><span class="alloc-self" style="width: 0"></span></div><div class="allocation-legend"><span><i class="legend-dot sold"></i>已出售 <b id="itemSoldCount">0</b></span><span><i class="legend-dot stock"></i>囤货 0</span><span><i class="legend-dot self"></i>自留 0</span><strong id="itemRecordedCount">已记录 0 份</strong></div><div class="member-line"><span class="member-mini">15</span><span id="itemMemberLine">单人款 · 全员均有</span><span class="member-status" id="itemMemberStatus">下单时再选择具体成员</span><span class="line-arrow">→</span></div><div class="kit-contents"><span>单人款套装内含</span><strong id="singleKitContents">明信片×15 · 亚克力别针×1 · 撕拉片×2 · NFC卡套×1 · 拍立得×1 · 小卡×2</strong></div></div></article>
-            </div>
+            <div class="page-intro compact-intro"><div><p class="eyebrow">MERCHANDISE</p><h1>周边</h1><p class="intro-copy">每个批次的额度和去向，一眼看清。</p></div><div class="order-entry-actions"><button class="secondary-entry" data-open-modal="newItem"><span>＋</span> 添加新周边</button><button class="primary-button" data-open-modal="newOrder"><span>＋</span> 有人要了，去拍下</button></div></div>
+            <div class="section-toolbar"><div class="segmented"><button class="segment active">全部 <b id="itemAllCount">1</b></button><button class="segment">进行中 <b id="itemActiveCount">1</b></button><button class="segment">已完成 <b>0</b></button></div><button class="filter-button">筛选 <span>⌄</span></button></div>
+            <div class="item-cards" id="itemCards"></div>
           </section>
 
           <section class="page-section" id="inventoryPage">

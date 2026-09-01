@@ -10,6 +10,7 @@ const toast = document.querySelector('#toast');
 const toastText = document.querySelector('#toastText');
 let pendingRefundRow = null;
 let pendingOrderId = null;
+let pendingItemId = null;
 let currentModalMode = null;
 let orderFilter = 'all';
 let stockFilter = 'all';
@@ -18,6 +19,7 @@ let platformFilter = 'all';
 
 const FAMILY_VARIANT_KEY = 'blue-ledger.family-variant';
 const ITEM_PROFILE_KEY = 'blue-ledger.item-profile';
+const EXTRA_ITEMS_KEY = 'blue-ledger.extra-items';
 const ORDERS_KEY = 'blue-ledger.orders';
 const STOCK_KEY = 'blue-ledger.stock';
 const MERCH_ID = 'love-love-love';
@@ -32,13 +34,14 @@ const DEFAULT_ITEM_PROFILE = {
 };
 let familyVariant = loadFamilyVariant();
 let itemProfile = loadStoredValue(ITEM_PROFILE_KEY, DEFAULT_ITEM_PROFILE);
+let extraItems = loadStoredValue(EXTRA_ITEMS_KEY, []);
 let orders = loadStoredValue(ORDERS_KEY, []);
 let stock = loadStoredValue(STOCK_KEY, []).map((item) => (
   item.status === '运输中' ? { ...item, status: '官方待发货' } : item
 ));
 
 const modalModes = {
-  newItem: { kicker: 'MERCH PROFILE', title: '编辑商品资料', copy: '当前原型只接入这一批真实周边，修改后会同步更新商品卡和订单选项。', drop: true, confirm: '保存商品资料' },
+  newItem: { kicker: 'NEW MERCH', title: '添加新周边', copy: '先录入周边名称、单人款价格和限购数量；已添加的周边可从卡片右上角编辑。', drop: true, confirm: '保存新周边' },
   addFamily: { kicker: 'ADD VARIANT', title: '添加家族款', copy: '家族款与单人款分别计价、计算库存和盈亏，不需要选择成员。', drop: false, confirm: '保存家族款' },
   newOrder: { kicker: 'ORDER', title: '新增代拍订单', copy: '选择买家、周边和成员；选择家族款时会自动带出家族款价格。', drop: false, confirm: '创建订单' },
   newStock: { kicker: 'OFFICIAL PURCHASE', title: '记录官方购买', copy: '选择周边和成员后记录囤货或自留；这一步不会创建买家订单。', drop: false, confirm: '加入仓库' },
@@ -50,7 +53,7 @@ const modalModes = {
 
 const modalFieldTemplates = {
   newItem: '<label>周边名称<input data-item-field="name" /></label><div class="field-grid"><label>款式类型<input value="单人款 · 共15款" readonly /></label><label>官方单价<input data-item-field="price" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 每款限购<input data-item-field="limit" inputmode="numeric" /></label><label>发货状态<input data-item-field="status" /></label></div><label>成员范围<input data-item-field="memberScope" /></label><label>套装内容<input data-item-field="contents" /></label>',
-  addFamily: '<label>所属周边<input value="奔跑 · LOVE LOVE LOVE" readonly /></label><div class="field-grid"><label>款式类型<input value="家族款" readonly /></label><label>官方单价<input data-family-field="price" placeholder="按官方通知填写" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input data-family-field="limit" placeholder="按官方通知填写" inputmode="numeric" /></label><label>发货状态<input data-family-field="status" placeholder="例如：现货" /></label></div><label>套装内容<input data-family-field="contents" placeholder="填写家族款实际包含的周边" /></label>',
+  addFamily: '<label>所属周边<input data-family-field="owner" readonly /></label><div class="field-grid"><label>款式类型<input value="家族款" readonly /></label><label>官方单价<input data-family-field="price" placeholder="按官方通知填写" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input data-family-field="limit" placeholder="按官方通知填写" inputmode="numeric" /></label><label>发货状态<input data-family-field="status" placeholder="例如：现货" /></label></div><label>套装内容<input data-family-field="contents" placeholder="填写家族款实际包含的周边" /></label>',
   newOrder: '<label>买家昵称<input data-order-field="buyer" placeholder="填写闲鱼或微信昵称" /></label><div class="field-grid"><label>选择周边<select data-order-field="merch"></select></label><label>选择成员 / 家族款<select data-order-field="member"></select></label></div><div class="field-grid"><label>购买数量<input data-order-field="quantity" value="1" inputmode="numeric" /></label><label>官方单价<input data-order-field="cost" inputmode="decimal" readonly /></label></div><div class="field-grid"><label>方式<select data-order-field="method"><option value="垫付">垫付</option><option value="提确">提确</option></select></label><label>交易平台<select data-order-field="platform"><option value="闲鱼">闲鱼</option><option value="微信">微信</option></select></label></div><label>代拍收款<input data-order-field="revenue" placeholder="例如：99" inputmode="decimal" /></label><label>收货地址<input data-order-field="address" placeholder="闲鱼拍下后粘贴地址" /></label>',
   newStock: '<div class="field-grid"><label>选择周边<select data-stock-field="merch"></select></label><label>选择成员 / 家族款<select data-stock-field="member"></select></label></div><div class="field-grid"><label>购买数量<input data-stock-field="quantity" value="1" inputmode="numeric" /></label><label>去向<select data-stock-field="intent"><option value="囤货">囤货</option><option value="自留">自留</option></select></label></div><div class="field-grid"><label>当前状态<select data-stock-field="status"><option value="官方待发货">官方待发货</option><option value="已到家">已到家</option></select></label><label>官方单价<input data-stock-field="cost" readonly /></label></div>',
   sellStock: '<label>选择现货<select data-sale-field="stockId"></select></label><div class="field-grid"><label>买家昵称<input data-sale-field="buyer" /></label><label>卖出数量<input data-sale-field="quantity" value="1" inputmode="numeric" /></label></div><div class="field-grid"><label>成交金额<input data-sale-field="revenue" inputmode="decimal" /></label><label>实际邮费<input data-sale-field="postage" value="0" inputmode="decimal" /></label></div><div class="field-grid"><label>交易平台<select data-sale-field="platform"><option value="闲鱼">闲鱼</option><option value="微信">微信</option></select></label><label>库存成本<input data-sale-field="cost" readonly /></label></div><label>买家地址<input data-sale-field="address" placeholder="从闲鱼订单粘贴" /></label>',
@@ -104,69 +107,108 @@ function updateCount(name, value) {
   document.querySelectorAll(`[data-count="${name}"]`).forEach((element) => { element.textContent = value; });
 }
 
-function renderItemProfile() {
-  document.querySelector('#itemName').textContent = itemProfile.name;
-  document.querySelector('#recentItemName').textContent = itemProfile.name;
-  document.querySelector('#itemStatus').textContent = itemProfile.status;
-  document.querySelector('#singleVariantPrice').innerHTML = `¥${formatPrice(itemProfile.price)}<small>/套</small>`;
-  document.querySelector('#recentItemPrice').innerHTML = `¥${formatPrice(itemProfile.price)}<span>/套</span>`;
-  document.querySelector('#singleVariantMeta').textContent = `${itemProfile.memberScope.replace('位成员均有对应款式', '名成员')} · 每 ID 每款限购 ${itemProfile.limit} 份`;
-  document.querySelector('#singleKitContents').textContent = itemProfile.contents;
-  document.querySelector('#recentItemMeta').textContent = `单人款共 15 款 · ${itemProfile.status}`;
+function allItems() {
+  return [{ id: MERCH_ID, ...itemProfile, familyVariant }, ...extraItems];
 }
 
-function populateItemForm() {
-  Object.entries(itemProfile).forEach(([field, value]) => {
+function getItemById(itemId = MERCH_ID) {
+  return allItems().find((item) => item.id === itemId) || allItems()[0];
+}
+
+function persistExtraItems() {
+  persist(EXTRA_ITEMS_KEY, extraItems);
+}
+
+function renderItemProfile() {
+  const items = allItems();
+  const cards = document.querySelector('#itemCards');
+  document.querySelector('#itemAllCount').textContent = items.length;
+  document.querySelector('#itemActiveCount').textContent = items.length;
+  cards.innerHTML = items.map((item) => {
+    const sold = orders.filter((order) => order.merchId === item.id).reduce((sum, order) => sum + order.quantity, 0);
+    const stored = stock.filter((entry) => entry.merchId === item.id && entry.intent === '囤货').reduce((sum, entry) => sum + entry.quantity, 0);
+    const self = stock.filter((entry) => entry.merchId === item.id && entry.intent === '自留').reduce((sum, entry) => sum + entry.quantity, 0);
+    const recorded = sold + stored + self;
+    const quota = Math.max(1, TF4_MEMBERS.length * Number(item.limit || 1));
+    const soldWidth = Math.min(100, sold / quota * 100);
+    const stockWidth = Math.min(100 - soldWidth, stored / quota * 100);
+    const selfWidth = Math.min(100 - soldWidth - stockWidth, self / quota * 100);
+    const family = item.familyVariant;
+    const visual = item.id === MERCH_ID
+      ? `<img src="love-love-love-cover.png" alt="${escapeHtml(item.name)}商品详情" />`
+      : `<span aria-hidden="true">${escapeHtml(item.name.slice(0, 1))}</span>`;
+    const familyMarkup = family
+      ? `<button class="variant-option family-recorded" type="button" data-family-item="${item.id}"><span>家族款 · 已录入</span><strong>¥${formatPrice(family.price)}<small>/套</small></strong><small>每 ID 限购 ${escapeHtml(family.limit)} 份 · ${escapeHtml(family.status || '状态待补')}</small></button>`
+      : `<button class="variant-option add-variant" type="button" data-family-item="${item.id}"><span>＋ 添加</span><strong>家族款</strong><small>可单独填写价格和限购</small></button>`;
+    return `<article class="full-item-card"><div class="large-item-visual ${item.id === MERCH_ID ? 'product-visual' : 'letter-thumb'}">${visual}<span class="status-chip in-stock">${escapeHtml(item.status)}</span></div><div class="full-item-body"><div class="full-item-top"><div><p class="eyebrow">TF 家族 · 已录入 ${family ? 2 : 1} 个款式</p><h2>${escapeHtml(item.name)}</h2></div><button class="more-button" type="button" data-edit-item="${item.id}" aria-label="编辑周边" title="编辑周边">⋯</button></div><div class="variant-switch"><button class="variant-option active" type="button"><span>单人款 · 共 15 款</span><strong>¥${formatPrice(item.price)}<small>/套</small></strong><small>${escapeHtml(item.memberScope)} · 每 ID 每款限购 ${escapeHtml(item.limit)} 份</small></button>${familyMarkup}</div><div class="allocation-bar"><span class="alloc-sold" style="width:${soldWidth}%"></span><span class="alloc-stock" style="width:${stockWidth}%"></span><span class="alloc-self" style="width:${selfWidth}%"></span></div><div class="allocation-legend"><span><i class="legend-dot sold"></i>已出售 ${sold}</span><span><i class="legend-dot stock"></i>囤货 ${stored}</span><span><i class="legend-dot self"></i>自留 ${self}</span><strong>已记录 ${recorded} 份</strong></div><div class="member-line"><span class="member-mini">15</span><span>单人款 · 全员均有</span><span class="member-status">下单时再选择具体成员</span></div><div class="kit-contents"><span>单人款套装内含</span><strong>${escapeHtml(item.contents || '待补充')}</strong></div></div></article>`;
+  }).join('');
+
+  const recent = items[0];
+  document.querySelector('#recentItemName').textContent = recent.name;
+  document.querySelector('#recentItemMeta').textContent = `单人款共 15 款 · ${recent.status}`;
+  const prices = [Number(recent.price), recent.familyVariant ? Number(recent.familyVariant.price) : Number(recent.price)];
+  document.querySelector('#recentItemPrice').innerHTML = `¥${formatPrice(Math.min(...prices))}<span>${recent.familyVariant ? '起' : '/套'}</span>`;
+}
+
+function populateItemForm(profile = null) {
+  const values = profile || { ...DEFAULT_ITEM_PROFILE, name: '', price: '', status: '', contents: '' };
+  Object.entries(values).forEach(([field, value]) => {
     const input = modalFields.querySelector(`[data-item-field="${field}"]`);
     if (input) input.value = value;
   });
 }
 
-function saveItemProfile() {
+function readItemProfile() {
   const profile = Object.fromEntries(Object.keys(DEFAULT_ITEM_PROFILE).map((field) => [field, modalFields.querySelector(`[data-item-field="${field}"]`).value.trim()]));
   const price = Number(profile.price);
   const limit = Number(profile.limit);
   if (!profile.name || !Number.isFinite(price) || price <= 0 || !Number.isInteger(limit) || limit <= 0) {
     showToast('请检查商品名称、价格和限购数量');
-    return false;
+    return null;
   }
-  itemProfile = { ...profile, price: profile.price, limit: profile.limit };
-  persist(ITEM_PROFILE_KEY, itemProfile);
+  return { ...profile, price: profile.price, limit: profile.limit };
+}
+
+function saveNewItem() {
+  const profile = readItemProfile();
+  if (!profile) return false;
+  extraItems.push({ id: `merch-${Date.now()}`, ...profile, familyVariant: null });
+  persistExtraItems();
   renderItemProfile();
-  renderFamilyVariant();
+  return true;
+}
+
+function saveItemProfile() {
+  const profile = readItemProfile();
+  if (!profile) return false;
+  if (pendingItemId === MERCH_ID) {
+    itemProfile = profile;
+    persist(ITEM_PROFILE_KEY, itemProfile);
+  } else {
+    const item = extraItems.find((entry) => entry.id === pendingItemId);
+    if (!item) return false;
+    Object.assign(item, profile);
+    persistExtraItems();
+  }
+  orders.forEach((order) => { if (order.merchId === pendingItemId) order.merchName = profile.name; });
+  stock.forEach((entry) => { if (entry.merchId === pendingItemId) entry.merchName = profile.name; });
+  persist(ORDERS_KEY, orders);
+  persist(STOCK_KEY, stock);
+  renderItemProfile();
   renderOrders();
   renderStock();
   return true;
 }
 
 function populateFamilyForm() {
-  if (!familyVariant) return;
-  Object.entries(familyVariant).forEach(([field, value]) => {
+  const item = getItemById(pendingItemId);
+  modalFields.querySelector('[data-family-field="owner"]').value = item.name;
+  if (!item.familyVariant) return;
+  Object.entries(item.familyVariant).forEach(([field, value]) => {
     const input = modalFields.querySelector(`[data-family-field="${field}"]`);
     if (input) input.value = value;
   });
   modalFields.insertAdjacentHTML('beforeend', '<button class="remove-variant-button" type="button" data-remove-family>删除家族款</button>');
-}
-
-function renderFamilyVariant() {
-  const button = document.querySelector('#familyVariantButton');
-  if (!familyVariant) {
-    button.classList.add('add-variant');
-    button.classList.remove('family-recorded');
-    button.innerHTML = '<span>＋ 添加</span><strong>家族款</strong><small>价格单独记录</small>';
-    document.querySelector('#variantCountLabel').textContent = 'TF 家族 · 已录入 1 个款式';
-    document.querySelector('#recentItemMeta').textContent = `单人款共 15 款 · ${itemProfile.status}`;
-    document.querySelector('#recentItemPrice').innerHTML = `¥${formatPrice(itemProfile.price)}<span>/套</span>`;
-    return;
-  }
-  const price = formatPrice(familyVariant.price);
-  button.classList.remove('add-variant');
-  button.classList.add('family-recorded');
-  button.innerHTML = `<span>家族款 · 已录入</span><strong>¥${price}<small>/套</small></strong><small>每 ID 限购 ${familyVariant.limit} 份 · ${escapeHtml(familyVariant.status || '状态待补')}</small>`;
-  document.querySelector('#variantCountLabel').textContent = 'TF 家族 · 已录入 2 个款式';
-  document.querySelector('#recentItemMeta').textContent = '已录入单人款与家族款 · 官方现货';
-  const startingPrice = Math.min(Number(itemProfile.price), Number(familyVariant.price));
-  document.querySelector('#recentItemPrice').innerHTML = `¥${formatPrice(startingPrice)}<span>起</span>`;
 }
 
 function saveFamilyVariant() {
@@ -184,31 +226,41 @@ function saveFamilyVariant() {
     showToast('请填写正确的限购数量');
     return false;
   }
-  familyVariant = {
+  const item = getItemById(pendingItemId);
+  const nextFamilyVariant = {
     price: priceInput.value.trim(),
     limit: limitInput.value.trim(),
     status: modalFields.querySelector('[data-family-field="status"]').value.trim(),
     contents: modalFields.querySelector('[data-family-field="contents"]').value.trim(),
   };
-  window.localStorage.setItem(FAMILY_VARIANT_KEY, JSON.stringify(familyVariant));
-  renderFamilyVariant();
+  if (item.id === MERCH_ID) {
+    familyVariant = nextFamilyVariant;
+    window.localStorage.setItem(FAMILY_VARIANT_KEY, JSON.stringify(familyVariant));
+  } else {
+    const extraItem = extraItems.find((entry) => entry.id === item.id);
+    extraItem.familyVariant = nextFamilyVariant;
+    persistExtraItems();
+  }
+  renderItemProfile();
   renderStock();
   return true;
 }
 
-function getVariantOptions() {
-  const options = [{ value: 'single', label: `单人款 · ¥${formatPrice(itemProfile.price)}`, cost: Number(itemProfile.price) }];
-  if (familyVariant) options.push({ value: 'family', label: `家族款 · ¥${formatPrice(familyVariant.price)}`, cost: Number(familyVariant.price) });
+function getVariantOptions(merchId = MERCH_ID) {
+  const item = getItemById(merchId);
+  const options = [{ value: 'single', label: `单人款 · ¥${formatPrice(item.price)}`, cost: Number(item.price) }];
+  if (item.familyVariant) options.push({ value: 'family', label: `家族款 · ¥${formatPrice(item.familyVariant.price)}`, cost: Number(item.familyVariant.price) });
   return options;
 }
 
 function getMerchOptions() {
-  return [{ value: MERCH_ID, label: itemProfile.name }];
+  return allItems().map((item) => ({ value: item.id, label: item.name }));
 }
 
-function memberOptionsMarkup() {
+function memberOptionsMarkup(merchId = MERCH_ID) {
+  const item = getItemById(merchId);
   const members = TF4_MEMBERS.map((member) => `<option value="${escapeHtml(member)}">${escapeHtml(member)}</option>`).join('');
-  const family = familyVariant
+  const family = item.familyVariant
     ? '<option value="family">家族款（TF 家族）</option>'
     : '<option value="family" disabled>家族款（请先录入价格）</option>';
   return `<option value="">请选择成员或家族款</option>${members}${family}`;
@@ -226,37 +278,47 @@ function merchOptionsMarkup() {
   return getMerchOptions().map((merch) => `<option value="${merch.value}">${escapeHtml(merch.label)}</option>`).join('');
 }
 
-function selectedVariant(member) {
+function selectedVariant(member, merchId = MERCH_ID) {
   const value = member === 'family' ? 'family' : 'single';
-  return getVariantOptions().find((option) => option.value === value) || getVariantOptions()[0];
+  return getVariantOptions(merchId).find((option) => option.value === value) || getVariantOptions(merchId)[0];
 }
 
 function populateOrderForm() {
   modalFields.querySelector('[data-order-field="merch"]').innerHTML = merchOptionsMarkup();
-  modalFields.querySelector('[data-order-field="member"]').innerHTML = memberOptionsMarkup();
+  syncOrderMerchFields();
+}
+
+function syncOrderMerchFields() {
+  const merchId = readField('[data-order-field="merch"]');
+  modalFields.querySelector('[data-order-field="member"]').innerHTML = memberOptionsMarkup(merchId);
   syncOrderVariantFields();
 }
 
 function syncOrderVariantFields() {
-  const variant = selectedVariant(readField('[data-order-field="member"]'));
+  const variant = selectedVariant(readField('[data-order-field="member"]'), readField('[data-order-field="merch"]'));
   modalFields.querySelector('[data-order-field="cost"]').value = formatPrice(variant.cost);
 }
 
 function populateStockForm() {
   modalFields.querySelector('[data-stock-field="merch"]').innerHTML = merchOptionsMarkup();
-  modalFields.querySelector('[data-stock-field="member"]').innerHTML = memberOptionsMarkup();
+  syncStockMerchFields();
+}
+
+function syncStockMerchFields() {
+  const merchId = readField('[data-stock-field="merch"]');
+  modalFields.querySelector('[data-stock-field="member"]').innerHTML = memberOptionsMarkup(merchId);
   syncStockVariantFields();
 }
 
 function syncStockVariantFields() {
-  const variant = selectedVariant(readField('[data-stock-field="member"]'));
+  const variant = selectedVariant(readField('[data-stock-field="member"]'), readField('[data-stock-field="merch"]'));
   modalFields.querySelector('[data-stock-field="cost"]').value = formatPrice(variant.cost);
 }
 
 function saveStock() {
   const merchId = readField('[data-stock-field="merch"]');
   const selectedMember = readField('[data-stock-field="member"]');
-  const variantInfo = selectedVariant(selectedMember);
+  const variantInfo = selectedVariant(selectedMember, merchId);
   const variant = variantInfo.value;
   const quantity = Number(readField('[data-stock-field="quantity"]'));
   if (!merchId || !selectedMember || !Number.isInteger(quantity) || quantity <= 0) {
@@ -266,6 +328,7 @@ function saveStock() {
   const merch = getMerchOptions().find((option) => option.value === merchId) || getMerchOptions()[0];
   stock.unshift({ id: `stock-${Date.now()}`, merchId, merchName: merch.label, variant, variantLabel: variantInfo.label, member: variant === 'family' ? '' : selectedMember, quantity, intent: readField('[data-stock-field="intent"]'), status: readField('[data-stock-field="status"]'), unitCost: variantInfo.cost });
   persist(STOCK_KEY, stock);
+  renderItemProfile();
   renderStock();
   return true;
 }
@@ -340,6 +403,7 @@ function saveStockSale() {
   stock = stock.filter((entry) => entry.quantity > 0);
   persist(ORDERS_KEY, orders);
   persist(STOCK_KEY, stock);
+  renderItemProfile();
   renderOrders();
   renderDashboard();
   renderStock();
@@ -353,7 +417,7 @@ function readField(selector) {
 function saveOrder() {
   const merchId = readField('[data-order-field="merch"]');
   const selectedMember = readField('[data-order-field="member"]');
-  const variantInfo = selectedVariant(selectedMember);
+  const variantInfo = selectedVariant(selectedMember, merchId);
   const variant = variantInfo.value;
   const quantity = Number(readField('[data-order-field="quantity"]'));
   const buyer = readField('[data-order-field="buyer"]');
@@ -389,6 +453,7 @@ function saveOrder() {
     note: '',
   });
   persist(ORDERS_KEY, orders);
+  renderItemProfile();
   renderOrders();
   renderDashboard();
   return true;
@@ -436,12 +501,9 @@ function renderDashboard() {
   const recordedQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
   document.querySelector('#quotaRecorded').textContent = `${recordedQuantity} 份`;
   document.querySelector('.meter-fill').style.width = `${Math.min(100, recordedQuantity / 15 * 100)}%`;
-  document.querySelector('#itemSoldCount').textContent = recordedQuantity;
-  document.querySelector('#itemRecordedCount').textContent = `已记录 ${recordedQuantity} 份`;
-  document.querySelector('#allocationSold').style.width = `${Math.min(100, recordedQuantity / 15 * 100)}%`;
   const pendingOrders = orders.filter((order) => order.stage !== '已完成');
   document.querySelector('#attentionCount').textContent = pendingOrders.length;
-  document.querySelector('#attentionList').innerHTML = pendingOrders.length ? `<div class="attention-list">${pendingOrders.slice(0, 3).map((order) => `<button class="attention-row" data-attention-order="${order.id}"><span class="attention-icon ${order.method === '垫付' ? 'orange' : 'blue'}">${order.method === '垫付' ? '↗' : '¥'}</span><span class="attention-copy"><strong>${order.stage === '待处理' ? '处理代拍订单' : escapeHtml(order.stage)}</strong><small>${escapeHtml(itemProfile.name)} · ${escapeHtml(order.buyer)}</small></span><span class="row-arrow">→</span></button>`).join('')}</div>` : '<div class="empty-state compact-empty"><span>✓</span><strong>现在没有待办</strong><small>订单发生变化后会出现在这里</small></div>';
+  document.querySelector('#attentionList').innerHTML = pendingOrders.length ? `<div class="attention-list">${pendingOrders.slice(0, 3).map((order) => `<button class="attention-row" data-attention-order="${order.id}"><span class="attention-icon ${order.method === '垫付' ? 'orange' : 'blue'}">${order.method === '垫付' ? '↗' : '¥'}</span><span class="attention-copy"><strong>${order.stage === '待处理' ? '处理代拍订单' : escapeHtml(order.stage)}</strong><small>${escapeHtml(order.merchName || itemProfile.name)} · ${escapeHtml(order.buyer)}</small></span><span class="row-arrow">→</span></button>`).join('')}</div>` : '<div class="empty-state compact-empty"><span>✓</span><strong>现在没有待办</strong><small>订单发生变化后会出现在这里</small></div>';
 }
 
 function saveOrderDetail() {
@@ -483,11 +545,12 @@ function openModal(mode = 'newItem') {
   const config = modalModes[mode] || modalModes.newItem;
   currentModalMode = mode;
   modalKicker.textContent = config.kicker;
-  modalTitle.textContent = mode === 'addFamily' && familyVariant ? '编辑家族款' : config.title;
+  modalTitle.textContent = mode === 'addFamily' && getItemById(pendingItemId).familyVariant ? '编辑家族款' : config.title;
   modalCopy.textContent = config.copy;
   modalDropzone.style.display = config.drop ? 'grid' : 'none';
   modalFields.innerHTML = modalFieldTemplates[mode] || '';
-  if (mode === 'newItem' || mode === 'itemDetail') populateItemForm();
+  if (mode === 'newItem') populateItemForm();
+  if (mode === 'itemDetail') populateItemForm(getItemById(pendingItemId));
   if (mode === 'newOrder') populateOrderForm();
   if (mode === 'newStock') populateStockForm();
   if (mode === 'sellStock') populateSaleForm();
@@ -503,6 +566,7 @@ function closeModal() {
   backdrop.setAttribute('aria-hidden', 'true');
   pendingRefundRow = null;
   pendingOrderId = null;
+  pendingItemId = null;
   currentModalMode = null;
 }
 
@@ -524,8 +588,22 @@ document.querySelectorAll('[data-refund-stock]').forEach((button) => button.addE
   openModal('refundStock');
 }));
 document.querySelectorAll('[data-open-item]').forEach((button) => button.addEventListener('click', () => {
+  pendingItemId = button.dataset.openItem || MERCH_ID;
   openModal('itemDetail');
 }));
+
+document.querySelector('#itemCards').addEventListener('click', (event) => {
+  const editButton = event.target.closest('[data-edit-item]');
+  const familyButton = event.target.closest('[data-family-item]');
+  if (editButton) {
+    pendingItemId = editButton.dataset.editItem;
+    openModal('itemDetail');
+  }
+  if (familyButton) {
+    pendingItemId = familyButton.dataset.familyItem;
+    openModal('addFamily');
+  }
+});
 
 document.querySelector('#orderList').addEventListener('click', (event) => {
   const button = event.target.closest('[data-open-order-id]');
@@ -561,7 +639,9 @@ document.querySelector('#searchInput').addEventListener('input', (event) => {
   });
 });
 modalFields.addEventListener('change', (event) => {
+  if (event.target.matches('[data-order-field="merch"]')) syncOrderMerchFields();
   if (event.target.matches('[data-order-field="member"]')) syncOrderVariantFields();
+  if (event.target.matches('[data-stock-field="merch"]')) syncStockMerchFields();
   if (event.target.matches('[data-stock-field="member"]')) syncStockVariantFields();
   if (event.target.matches('[data-sale-field="stockId"]')) syncSaleCost();
 });
@@ -573,12 +653,14 @@ document.querySelector('#stockList').addEventListener('click', (event) => {
     const item = stock.find((entry) => entry.id === arrived.dataset.stockArrived);
     if (item) item.status = '已到家';
     persist(STOCK_KEY, stock);
+    renderItemProfile();
     renderStock();
     showToast('已标记到家');
   }
   if (remove) {
     stock = stock.filter((entry) => entry.id !== remove.dataset.stockRemove);
     persist(STOCK_KEY, stock);
+    renderItemProfile();
     renderStock();
     showToast('库存记录已移除');
   }
@@ -587,9 +669,15 @@ document.querySelector('#modalClose').addEventListener('click', closeModal);
 document.querySelector('#modalCancel').addEventListener('click', closeModal);
 modalFields.addEventListener('click', (event) => {
   if (event.target.closest('[data-remove-family]')) {
-    familyVariant = null;
-    window.localStorage.removeItem(FAMILY_VARIANT_KEY);
-    renderFamilyVariant();
+    if (pendingItemId === MERCH_ID) {
+      familyVariant = null;
+      window.localStorage.removeItem(FAMILY_VARIANT_KEY);
+    } else {
+      const item = extraItems.find((entry) => entry.id === pendingItemId);
+      if (item) item.familyVariant = null;
+      persistExtraItems();
+    }
+    renderItemProfile();
     closeModal();
     showToast('家族款已删除');
     return;
@@ -597,6 +685,7 @@ modalFields.addEventListener('click', (event) => {
   if (event.target.closest('[data-remove-order]')) {
     orders = orders.filter((order) => order.id !== pendingOrderId);
     persist(ORDERS_KEY, orders);
+    renderItemProfile();
     renderOrders();
     renderDashboard();
     closeModal();
@@ -619,10 +708,16 @@ modalConfirm.addEventListener('click', () => {
     showToast('家族款已保存并更新到周边');
     return;
   }
-  if (currentModalMode === 'newItem' || currentModalMode === 'itemDetail') {
+  if (currentModalMode === 'newItem') {
+    if (!saveNewItem()) return;
+    closeModal();
+    showToast('新周边已添加');
+    return;
+  }
+  if (currentModalMode === 'itemDetail') {
     if (!saveItemProfile()) return;
     closeModal();
-    showToast('商品资料已保存并更新');
+    showToast('周边资料已更新');
     return;
   }
   if (currentModalMode === 'newOrder') {
@@ -695,7 +790,6 @@ document.querySelectorAll('.filter-button').forEach((button) => {
   if (button.id !== 'orderPlatformFilter') button.addEventListener('click', () => showToast('成员筛选将在正式版本接入'));
 });
 renderItemProfile();
-renderFamilyVariant();
 populateStockMemberFilter();
 renderOrders();
 renderDashboard();
