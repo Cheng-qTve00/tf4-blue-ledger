@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#89a5dc" />
+    <title>蓝账本 | 周边代拍管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div>
+            <div class="brand-name">蓝账本</div>
+            <div class="brand-subtitle">TF4 周边管家</div>
+          </div>
+        </div>
+
+        <div class="sidebar-profile">
+          <div class="profile-avatar">L</div>
+          <div>
+            <div class="profile-name">我的小仓库</div>
+            <div class="profile-sync"><i></i> 本机已保存</div>
+          </div>
+        </div>
+
+        <nav class="main-nav" aria-label="主导航">
+          <button class="nav-item active" data-page="overview"><span class="nav-icon">⌂</span><span>总览</span></button>
+          <button class="nav-item" data-page="items"><span class="nav-icon">▣</span><span>周边</span></button>
+          <button class="nav-item" data-page="inventory"><span class="nav-icon">▤</span><span>仓库</span><b data-count="inventory">0</b></button>
+          <button class="nav-item" data-page="orders"><span class="nav-icon">◫</span><span>订单</span><b data-count="orders">0</b></button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="member-meter">
+            <div class="meter-heading"><span>已录入代拍数量</span><strong id="quotaRecorded">0 份</strong></div>
+            <div class="meter-track"><div class="meter-fill" style="width: 0"></div></div>
+            <div class="meter-note">仅统计当前订单</div>
+          </div>
+          <button class="settings-button"><span>⚙</span> 设置</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb"><span>我的空间</span><em>/</em><strong id="pageTitle">总览</strong></div>
+          <div class="topbar-actions">
+            <button class="icon-button" id="searchToggle" aria-label="搜索" title="搜索">⌕</button>
+            <div class="search-wrap" id="searchWrap"><input id="searchInput" type="search" placeholder="搜索周边、成员、买家或单号" /></div>
+            <button class="sync-pill" id="syncPill" title="当前浏览器保存状态"><i></i> 本机已保存</button>
+            <button class="avatar-button">L</button>
+          </div>
+        </header>
+
+        <div class="page-area">
+          <section class="page-section active" id="overviewPage">
+            <div class="page-intro">
+              <div>
+                <p class="eyebrow">星期二 · 9 月 1 日</p>
+                <h1>今天，先把账理顺。</h1>
+                <p class="intro-copy">你的库存和订单都在这里，重要的事不会漏掉。</p>
+              </div>
+            </div>
+
+            <div class="metric-grid">
+              <article class="metric-card metric-highlight">
+                <div class="metric-label"><span>当前垫付</span><span class="metric-dot coral"></span></div>
+                <div class="metric-value" id="advanceValue">¥0<span class="metric-unit">.00</span></div>
+                <div class="metric-foot" id="advanceFoot">暂无垫付订单</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-label"><span>待到账</span><span class="metric-dot blue"></span></div>
+                <div class="metric-value" id="receivableValue">¥0<span class="metric-unit">.00</span></div>
+                <div class="metric-foot" id="receivableFoot">暂无待到账款项</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-label"><span>已实现利润</span><span class="metric-dot green"></span></div>
+                <div class="metric-value green-text" id="profitValue">¥0<span class="metric-unit">.00</span></div>
+                <div class="metric-foot" id="profitFoot">暂无已完成订单</div>
+              </article>
+              <article class="metric-card inventory-metric">
+                <div class="metric-label"><span>仓库库存</span><span class="metric-dot purple"></span></div>
+                <div class="metric-value"><span id="overviewStockCount">0</span><span class="metric-unit"> 件</span></div>
+                <div class="metric-foot" id="overviewStockCost">库存成本 ¥0.00</div>
+                <button class="text-link" data-page-jump="inventory">查看库存 <span>→</span></button>
+              </article>
+            </div>
+
+            <div class="overview-grid">
+              <section class="panel attention-panel">
+                <div class="panel-heading"><div><p class="eyebrow">ACTION REQUIRED</p><h2>现在要处理</h2></div><span class="count-badge" id="attentionCount">0</span></div>
+                <div id="attentionList"><div class="empty-state compact-empty"><span>✓</span><strong>现在没有待办</strong><small>订单发生变化后会出现在这里</small></div></div>
+              </section>
+
+              <section class="panel recent-panel">
+                <div class="panel-heading"><div><p class="eyebrow">LATEST</p><h2>最近的周边</h2></div><button class="small-action" data-page-jump="items">全部 <span>→</span></button></div>
+                <div class="recent-list">
+                  <button class="item-row" data-open-item="loveLoveLove">
+                    <div class="item-thumb product-thumb"><img src="love-love-love-cover.png" alt="奔跑 LOVE LOVE LOVE 单人款" /></div>
+                    <span class="item-copy"><strong id="recentItemName">奔跑 · LOVE LOVE LOVE</strong><small id="recentItemMeta">单人款共 15 款 · 官方现货</small></span><span class="item-amount" id="recentItemPrice">¥79<span>/套</span></span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section class="page-section" id="itemsPage">
+            <div class="page-intro compact-intro"><div><p class="eyebrow">MERCHANDISE</p><h1>周边</h1><p class="intro-copy">每个批次的额度和去向，一眼看清。</p></div><div class="order-entry-actions"><button class="secondary-entry" data-open-modal="newItem"><span>✎</span> 编辑商品资料</button><button class="primary-button" data-open-modal="newOrder"><span>＋</span> 有人要了，去拍下</button></div></div>
+            <div class="section-toolbar"><div class="segmented"><button class="segment active">全部 <b>1</b></button><button class="segment">进行中 <b>1</b></button><button class="segment">已完成 <b>0</b></button></div><button class="filter-button">筛选 <span>⌄</span></button></div>
+            <div class="item-cards">
+              <article class="full-item-card featured-product" data-open-item="loveLoveLove"><div class="large-item-visual product-visual"><img src="love-love-love-cover.png" alt="奔跑 LOVE LOVE LOVE 单人款商品详情" /><span class="status-chip in-stock" id="itemStatus">官方现货</span></div><div class="full-item-body"><div class="full-item-top"><div><p class="eyebrow" id="variantCountLabel">TF 家族 · 已录入 1 个款式</p><h2 id="itemName">奔跑 · LOVE LOVE LOVE</h2></div><button class="more-button">⋯</button></div><div class="variant-switch" aria-label="周边款式"><button class="variant-option active" type="button"><span id="singleVariantLabel">单人款 · 共 15 款</span><strong id="singleVariantPrice">¥79<small>/套</small></strong><small id="singleVariantMeta">15 名成员 · 每 ID 每款限购 1 份</small></button><button class="variant-option add-variant" id="familyVariantButton" type="button" data-open-modal="addFamily"><span>＋ 添加</span><strong>家族款</strong><small>可单独填写价格和限购</small></button></div><div class="allocation-bar"><span class="alloc-sold" id="allocationSold" style="width: 0"></span><span class="alloc-stock" style="width: 0"></span><span class="alloc-self" style="width: 0"></span></div><div class="allocation-legend"><span><i class="legend-dot sold"></i>已出售 <b id="itemSoldCount">0</b></span><span><i class="legend-dot stock"></i>囤货 0</span><span><i class="legend-dot self"></i>自留 0</span><strong id="itemRecordedCount">已记录 0 份</strong></div><div class="member-line"><span class="member-mini">15</span><span id="itemMemberLine">单人款 · 全员均有</span><span class="member-status" id="itemMemberStatus">下单时再选择具体成员</span><span class="line-arrow">→</span></div><div class="kit-contents"><span>单人款套装内含</span><strong id="singleKitContents">明信片×15 · 亚克力别针×1 · 撕拉片×2 · NFC卡套×1 · 拍立得×1 · 小卡×2</strong></div></div></article>
+            </div>
+          </section>
+
+          <section class="page-section" id="inventoryPage">
+            <div class="page-intro compact-intro"><div><p class="eyebrow">MY STORAGE</p><h1>仓库</h1><p class="intro-copy">现在手里有多少，压了多少钱。</p></div><div class="order-entry-actions"><button class="primary-button" data-open-modal="newStock"><span>＋</span> 记录官方购买</button><button class="secondary-entry" data-sell-stock-button data-open-modal="sellStock" disabled><span>↗</span> 从仓库卖出</button></div></div>
+            <div class="inventory-summary"><div><span>现货</span><strong><span id="stockHomeCount">0</span> <small>件</small></strong></div><div><span>待发货</span><strong><span id="stockPendingCount">0</span> <small>件</small></strong></div><div><span>库存成本</span><strong id="stockCost">¥0</strong></div><div><span>预计可赚</span><strong class="green-text">¥0</strong></div></div>
+            <div class="section-toolbar"><div class="segmented"><button class="segment active" data-stock-filter="all">全部 <b id="stockAllCount">0</b></button><button class="segment" data-stock-filter="home">现货 <b id="stockHomeTabCount">0</b></button><button class="segment" data-stock-filter="pending">待发货 <b id="stockPendingTabCount">0</b></button></div><select class="filter-select" id="stockMemberFilter" aria-label="按成员筛选库存"></select></div>
+            <div class="stock-list" id="stockList"><div class="empty-state page-empty"><span>▤</span><strong>仓库还是空的</strong><small>点击“记录官方购买”添加自留或囤货</small></div></div>
+          </section>
+
+          <section class="page-section" id="ordersPage">
+            <div class="page-intro compact-intro"><div><p class="eyebrow">ORDERS</p><h1>订单</h1><p class="intro-copy">先记录买家需求，再去官方下单；囤货出售也在这里完成。</p></div><div class="order-entry-actions"><button class="primary-button" data-open-modal="newOrder"><span>＋</span> 有人要了，去拍下</button><button class="secondary-entry" data-sell-stock-button data-open-modal="sellStock" disabled><span>↗</span> 从仓库卖出</button></div></div>
+            <div class="section-toolbar"><div class="segmented"><button class="segment active" data-order-filter="all">全部 <b id="ordersAllCount">0</b></button><button class="segment" data-order-filter="pending">待处理 <b id="ordersPendingCount">0</b></button><button class="segment" data-order-filter="completed">已完成 <b id="ordersDoneCount">0</b></button></div><button class="filter-button" id="orderPlatformFilter">平台：全部 <span>⌄</span></button></div>
+            <div class="order-list" id="orderList"><div class="empty-state page-empty"><span>◫</span><strong>还没有订单</strong><small>有人找你代拍时，从上方直接创建订单</small></div></div>
+          </section>
+        </div>
+
+        <nav class="mobile-nav" aria-label="移动端主导航"><button class="mobile-nav-item active" data-page="overview"><span>⌂</span>总览</button><button class="mobile-nav-item" data-page="items"><span>▣</span>周边</button><button class="mobile-nav-item" data-page="inventory"><span>▤</span>仓库</button><button class="mobile-nav-item" data-page="orders"><span>◫</span>订单<i id="mobileOrderCount">0</i></button></nav>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
+        <div class="modal-kicker" id="modalKicker">QUICK ADD</div>
+        <h2 id="modalTitle">新增周边</h2>
+        <p class="modal-copy" id="modalCopy">先把通知交给我，名称、价格和限购信息可以稍后确认。</p>
+        <div class="modal-dropzone" id="modalDropzone"><div class="drop-icon">↑</div><strong>拖入通知截图</strong><span id="dropzoneFileName">或点击选择图片 / 粘贴文字</span><button class="drop-action" type="button">选择文件</button><input id="noticeFile" type="file" accept="image/*,.txt,.pdf" hidden /></div>
+        <div class="modal-fields" id="modalFields"><label>周边名称<input value="奔跑 · LOVE LOVE LOVE" /></label><div class="field-grid"><label>首个款式<input value="单人款" /></label><label>官方单价<input value="79" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input value="1" inputmode="numeric" /></label><label>发货状态<input value="现货 · 15天内发货" /></label></div></div>
+        <div class="modal-footer"><button class="secondary-button" id="modalCancel">取消</button><button class="primary-button" id="modalConfirm">确认并保存 <span>→</span></button></div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast"><span class="toast-check">✓</span><span id="toastText">已保存</span></div>
+    <script src="app.js"></script>
+  </body>
+</html>
