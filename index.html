@@ -25,7 +25,7 @@
           <div class="profile-avatar">L</div>
           <div>
             <div class="profile-name">我的小仓库</div>
-            <div class="profile-sync"><i></i> 本机已保存</div>
+            <div class="profile-sync" id="profileSync" title="点击顶部同步按钮登录"><i></i> 登录以同步</div>
           </div>
         </div>
 
@@ -52,7 +52,7 @@
           <div class="topbar-actions">
             <button class="icon-button" id="searchToggle" aria-label="搜索" title="搜索">⌕</button>
             <div class="search-wrap" id="searchWrap"><input id="searchInput" type="search" placeholder="搜索周边、成员、买家或单号" /></div>
-            <button class="sync-pill" id="syncPill" title="当前浏览器保存状态"><i></i> 本机已保存</button>
+            <button class="sync-pill" id="syncPill" title="登录后可在手机和电脑间同步"><i></i> 登录以同步</button>
             <button class="avatar-button">L</button>
           </div>
         </header>
@@ -146,6 +146,7 @@
     </div>
 
     <div class="toast" id="toast"><span class="toast-check">✓</span><span id="toastText">已保存</span></div>
+    <script src="supabase.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

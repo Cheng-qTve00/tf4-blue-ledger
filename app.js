@@ -16,12 +16,23 @@ let orderFilter = 'all';
 let stockFilter = 'all';
 let stockMemberFilter = 'all';
 let platformFilter = 'all';
+let cloudClient = null;
+let cloudUser = null;
+let cloudSyncTimer = null;
+let cloudApplying = false;
+let cloudSyncing = false;
+let cloudSyncQueued = false;
+let lastCloudUpdatedAt = null;
 
 const FAMILY_VARIANT_KEY = 'blue-ledger.family-variant';
 const ITEM_PROFILE_KEY = 'blue-ledger.item-profile';
 const EXTRA_ITEMS_KEY = 'blue-ledger.extra-items';
 const ORDERS_KEY = 'blue-ledger.orders';
 const STOCK_KEY = 'blue-ledger.stock';
+const SUPABASE_URL = 'https://yjhopazkhcetzgeusjqw.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable__NiPUBbWuHKlclTKLhvL0A_PjotNQD4';
+const CLOUD_TABLE = 'blue_ledger_data';
+const APP_URL = 'https://cheng-qtve00.github.io/tf4-blue-ledger/';
 const MERCH_ID = 'love-love-love';
 const TF4_MEMBERS = ['官俊臣', '张桂源', '张函瑞', '王橹杰', '王烁然', '左奇函', '陈奕恒', '杨博文', '杨涵博', '张奕然', '聂玮辰', '陈思罕', '魏子宸', '李煜东', '陈浚铭'];
 const DEFAULT_ITEM_PROFILE = {
@@ -49,6 +60,7 @@ const modalModes = {
   refundStock: { kicker: 'CANCEL OFFICIAL ORDER', title: '退款并移除库存', copy: '只适用于官方尚未发货的商品。退款后，库存数量和垫付金额会同步扣除。', drop: false, confirm: '确认退款' },
   itemDetail: { kicker: 'MERCH DETAIL', title: '周边详情', copy: '额度分配、订单去向和仓库数量都集中在这里。', drop: false, confirm: '保存修改' },
   orderDetail: { kicker: 'ORDER DETAIL', title: '订单详情', copy: '发货、物流和收款可以在同一个页面完成。', drop: false, confirm: '保存处理' },
+  syncAccount: { kicker: 'CLOUD SYNC', title: '登录并同步', copy: '使用同一个邮箱登录手机和电脑，两边的周边、仓库和订单会自动保持一致。', drop: false, confirm: '发送登录链接' },
 };
 
 const modalFieldTemplates = {
@@ -60,6 +72,7 @@ const modalFieldTemplates = {
   refundStock: '<label>退款商品<input value="奔跑 · LOVE LOVE LOVE 单人款" /></label><div class="field-grid"><label>退款数量<input value="1" inputmode="numeric" /></label><label>退款金额<input value="79.00" inputmode="decimal" /></label></div><label>退款原因<input value="资金安排调整" /></label>',
   itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="field-grid"><label>当前款式<input value="单人款 · 共15款" readonly /></label><label>官方单价<input data-item-field="price" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 每款限购<input data-item-field="limit" inputmode="numeric" /></label><label>成员范围<input data-item-field="memberScope" /></label></div><label>发货状态<input data-item-field="status" /></label><label>单人款套装内容<input data-item-field="contents" /></label>',
   orderDetail: '<label>当前处理<select data-order-detail-field="stage"><option value="待处理">待处理</option><option value="已发货">已发货</option><option value="已收款">已收款</option><option value="已完成">已完成</option></select></label><div class="field-grid"><label>物流单号<input data-order-detail-field="tracking" placeholder="闲鱼订单发货后填写" /></label><label>实际邮费<input data-order-detail-field="postage" placeholder="0.00" inputmode="decimal" /></label></div><div class="field-grid"><label>代拍收款<input data-order-detail-field="revenue" inputmode="decimal" /></label><label>收货地址<input data-order-detail-field="address" /></label></div><label>备注 <input data-order-detail-field="note" placeholder="选填" /></label>',
+  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>登录链接会发送到这个邮箱。手机和电脑请使用同一个邮箱。</div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
 };
 
 function switchPage(page) {
@@ -97,6 +110,161 @@ function formatMoney(value) {
 
 function persist(key, value) {
   window.localStorage.setItem(key, JSON.stringify(value));
+  queueCloudSync();
+}
+
+function cloudPayload() {
+  return {
+    version: 1,
+    itemProfile,
+    familyVariant,
+    extraItems,
+    orders,
+    stock,
+  };
+}
+
+function setSyncStatus(state, detail = '') {
+  const labels = {
+    local: '登录以同步',
+    syncing: '正在同步',
+    synced: '云端已同步',
+    error: '同步失败',
+  };
+  document.querySelectorAll('#syncPill, #profileSync').forEach((element) => {
+    element.dataset.syncState = state;
+    element.innerHTML = `<i></i> ${labels[state] || labels.local}`;
+    element.title = detail || (state === 'synced' ? `已登录：${cloudUser?.email || ''}` : '登录后可在手机和电脑间同步');
+  });
+}
+
+function saveCloudPayloadLocally(payload) {
+  window.localStorage.setItem(ITEM_PROFILE_KEY, JSON.stringify(payload.itemProfile));
+  if (payload.familyVariant) window.localStorage.setItem(FAMILY_VARIANT_KEY, JSON.stringify(payload.familyVariant));
+  else window.localStorage.removeItem(FAMILY_VARIANT_KEY);
+  window.localStorage.setItem(EXTRA_ITEMS_KEY, JSON.stringify(payload.extraItems));
+  window.localStorage.setItem(ORDERS_KEY, JSON.stringify(payload.orders));
+  window.localStorage.setItem(STOCK_KEY, JSON.stringify(payload.stock));
+}
+
+function applyCloudPayload(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  cloudApplying = true;
+  itemProfile = payload.itemProfile && typeof payload.itemProfile === 'object' ? payload.itemProfile : itemProfile;
+  familyVariant = payload.familyVariant && typeof payload.familyVariant === 'object' ? payload.familyVariant : null;
+  extraItems = Array.isArray(payload.extraItems) ? payload.extraItems : [];
+  orders = Array.isArray(payload.orders) ? payload.orders : [];
+  stock = Array.isArray(payload.stock) ? payload.stock.map((item) => (
+    item.status === '运输中' ? { ...item, status: '官方待发货' } : item
+  )) : [];
+  saveCloudPayloadLocally(cloudPayload());
+  cloudApplying = false;
+  renderItemProfile();
+  populateStockMemberFilter();
+  renderOrders();
+  renderDashboard();
+  renderStock();
+}
+
+function queueCloudSync() {
+  if (!cloudClient || !cloudUser || cloudApplying) return;
+  window.clearTimeout(cloudSyncTimer);
+  setSyncStatus('syncing');
+  cloudSyncTimer = window.setTimeout(() => syncToCloud(), 650);
+}
+
+async function syncToCloud() {
+  if (!cloudClient || !cloudUser || cloudApplying) return false;
+  if (cloudSyncing) {
+    cloudSyncQueued = true;
+    return false;
+  }
+  cloudSyncing = true;
+  setSyncStatus('syncing');
+  const updatedAt = new Date().toISOString();
+  const { error } = await cloudClient.from(CLOUD_TABLE).upsert({
+    user_id: cloudUser.id,
+    payload: cloudPayload(),
+    updated_at: updatedAt,
+  }, { onConflict: 'user_id' });
+  cloudSyncing = false;
+  if (error) {
+    console.error('Cloud sync failed', error);
+    setSyncStatus('error', error.message);
+    return false;
+  }
+  lastCloudUpdatedAt = updatedAt;
+  setSyncStatus('synced');
+  if (cloudSyncQueued) {
+    cloudSyncQueued = false;
+    queueCloudSync();
+  }
+  return true;
+}
+
+async function loadCloudLedger({ quiet = false } = {}) {
+  if (!cloudClient || !cloudUser || cloudSyncing) return;
+  const { data, error } = await cloudClient
+    .from(CLOUD_TABLE)
+    .select('payload, updated_at')
+    .eq('user_id', cloudUser.id)
+    .maybeSingle();
+  if (error) {
+    console.error('Cloud load failed', error);
+    setSyncStatus('error', error.message);
+    return;
+  }
+  if (!data) {
+    const uploaded = await syncToCloud();
+    if (uploaded && !quiet) showToast('本机记录已上传到云端');
+    return;
+  }
+  if (data.updated_at !== lastCloudUpdatedAt) {
+    lastCloudUpdatedAt = data.updated_at;
+    applyCloudPayload(data.payload);
+    if (!quiet) showToast('已载入云端记录');
+  }
+  setSyncStatus('synced');
+}
+
+async function connectCloudUser(user, options = {}) {
+  cloudUser = user;
+  setSyncStatus('syncing');
+  await loadCloudLedger(options);
+}
+
+async function initCloudSync() {
+  if (!window.supabase?.createClient) {
+    setSyncStatus('error', '同步服务未能载入，请检查网络后刷新');
+    return;
+  }
+  cloudClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const { data, error } = await cloudClient.auth.getSession();
+  if (error) {
+    setSyncStatus('error', error.message);
+  } else if (data.session?.user) {
+    await connectCloudUser(data.session.user);
+  } else {
+    setSyncStatus('local');
+  }
+  cloudClient.auth.onAuthStateChange((event, session) => {
+    window.setTimeout(async () => {
+      if (session?.user) {
+        const isNewLogin = cloudUser?.id !== session.user.id;
+        await connectCloudUser(session.user, { quiet: !isNewLogin });
+      } else {
+        cloudUser = null;
+        lastCloudUpdatedAt = null;
+        setSyncStatus('local');
+      }
+    }, 0);
+  });
+  window.setInterval(() => {
+    if (cloudUser && document.visibilityState === 'visible') loadCloudLedger({ quiet: true });
+  }, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (cloudUser && document.visibilityState === 'visible') loadCloudLedger({ quiet: true });
+  });
 }
 
 function escapeHtml(value = '') {
@@ -235,7 +403,7 @@ function saveFamilyVariant() {
   };
   if (item.id === MERCH_ID) {
     familyVariant = nextFamilyVariant;
-    window.localStorage.setItem(FAMILY_VARIANT_KEY, JSON.stringify(familyVariant));
+    persist(FAMILY_VARIANT_KEY, familyVariant);
   } else {
     const extraItem = extraItems.find((entry) => entry.id === item.id);
     extraItem.familyVariant = nextFamilyVariant;
@@ -555,10 +723,26 @@ function openModal(mode = 'newItem') {
   if (mode === 'newStock') populateStockForm();
   if (mode === 'sellStock') populateSaleForm();
   if (mode === 'addFamily') populateFamilyForm();
+  if (mode === 'syncAccount') populateSyncAccountForm();
   modalFields.style.display = modalFieldTemplates[mode] ? 'grid' : 'none';
-  modalConfirm.innerHTML = `${config.confirm} <span>→</span>`;
+  if (mode !== 'syncAccount' || !cloudUser) modalConfirm.innerHTML = `${config.confirm} <span>→</span>`;
   backdrop.classList.add('open');
   backdrop.setAttribute('aria-hidden', 'false');
+}
+
+function populateSyncAccountForm() {
+  const emailInput = modalFields.querySelector('[data-sync-field="email"]');
+  const message = modalFields.querySelector('[data-sync-message]');
+  const signout = modalFields.querySelector('[data-cloud-signout]');
+  if (cloudUser) {
+    modalTitle.textContent = '云端同步已开启';
+    modalCopy.textContent = '周边、仓库和订单会自动上传；另一台设备使用同一邮箱登录即可同步。';
+    emailInput.value = cloudUser.email || '';
+    emailInput.readOnly = true;
+    message.textContent = '当前账号已连接。页面打开时和每次修改后都会自动同步。';
+    signout.hidden = false;
+    modalConfirm.innerHTML = '立即同步 <span>→</span>';
+  }
 }
 
 function closeModal() {
@@ -668,10 +852,20 @@ document.querySelector('#stockList').addEventListener('click', (event) => {
 document.querySelector('#modalClose').addEventListener('click', closeModal);
 document.querySelector('#modalCancel').addEventListener('click', closeModal);
 modalFields.addEventListener('click', (event) => {
+  if (event.target.closest('[data-cloud-signout]')) {
+    if (cloudClient) cloudClient.auth.signOut();
+    cloudUser = null;
+    lastCloudUpdatedAt = null;
+    setSyncStatus('local');
+    closeModal();
+    showToast('已退出云端账号，本机记录仍会保留');
+    return;
+  }
   if (event.target.closest('[data-remove-family]')) {
     if (pendingItemId === MERCH_ID) {
       familyVariant = null;
       window.localStorage.removeItem(FAMILY_VARIANT_KEY);
+      queueCloudSync();
     } else {
       const item = extraItems.find((entry) => entry.id === pendingItemId);
       if (item) item.familyVariant = null;
@@ -694,7 +888,7 @@ modalFields.addEventListener('click', (event) => {
 });
 backdrop.addEventListener('click', (event) => { if (event.target === backdrop) closeModal(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
-modalConfirm.addEventListener('click', () => {
+modalConfirm.addEventListener('click', async () => {
   if (pendingRefundRow) {
     pendingRefundRow.remove();
     pendingRefundRow = null;
@@ -744,6 +938,42 @@ modalConfirm.addEventListener('click', () => {
     showToast('订单处理记录已保存');
     return;
   }
+  if (currentModalMode === 'syncAccount') {
+    if (!cloudClient) {
+      showToast('同步服务未载入，请联网后刷新页面');
+      return;
+    }
+    if (cloudUser) {
+      const synced = await syncToCloud();
+      if (synced) {
+        closeModal();
+        showToast('云端同步已完成');
+      }
+      return;
+    }
+    const emailInput = modalFields.querySelector('[data-sync-field="email"]');
+    const email = emailInput.value.trim();
+    if (!email || !email.includes('@')) {
+      emailInput.focus();
+      showToast('请填写正确的邮箱');
+      return;
+    }
+    modalConfirm.disabled = true;
+    modalConfirm.textContent = '正在发送…';
+    const { error } = await cloudClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: APP_URL },
+    });
+    modalConfirm.disabled = false;
+    modalConfirm.innerHTML = '重新发送登录链接 <span>→</span>';
+    if (error) {
+      showToast(`发送失败：${error.message}`);
+      return;
+    }
+    modalFields.querySelector('[data-sync-message]').textContent = '登录链接已发送，请打开邮箱并点击链接。登录成功后会自动回到蓝账本。';
+    showToast('登录链接已发送到邮箱');
+    return;
+  }
   closeModal();
   showToast('已保存，相关库存和账目会自动更新');
 });
@@ -777,9 +1007,9 @@ document.querySelector('#stockMemberFilter')?.addEventListener('change', (event)
   renderStock();
 });
 
-document.querySelector('#syncPill')?.addEventListener('click', () => showToast('原型数据已保存在当前浏览器'));
+document.querySelector('#syncPill')?.addEventListener('click', () => openModal('syncAccount'));
 document.querySelector('.settings-button')?.addEventListener('click', () => showToast('设置功能将在正式版本接入'));
-document.querySelector('.avatar-button')?.addEventListener('click', () => showToast('当前为个人预览空间'));
+document.querySelector('.avatar-button')?.addEventListener('click', () => openModal('syncAccount'));
 document.querySelector('#orderPlatformFilter')?.addEventListener('click', () => {
   platformFilter = platformFilter === 'all' ? '闲鱼' : platformFilter === '闲鱼' ? '微信' : 'all';
   document.querySelector('#orderPlatformFilter').innerHTML = `平台：${platformFilter === 'all' ? '全部' : platformFilter} <span>⌄</span>`;
@@ -794,3 +1024,4 @@ populateStockMemberFilter();
 renderOrders();
 renderDashboard();
 renderStock();
+initCloudSync();
