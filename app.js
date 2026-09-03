@@ -63,7 +63,7 @@ const modalModes = {
   refundStock: { kicker: 'CANCEL OFFICIAL ORDER', title: '退款并移除库存', copy: '只适用于官方尚未发货的商品。退款后，库存数量和垫付金额会同步扣除。', drop: false, confirm: '确认退款' },
   itemDetail: { kicker: 'MERCH DETAIL', title: '周边详情', copy: '额度分配、订单去向和仓库数量都集中在这里。', drop: false, confirm: '保存修改' },
   orderDetail: { kicker: 'ORDER DETAIL', title: '订单详情', copy: '发货、物流和收款可以在同一个页面完成。', drop: false, confirm: '保存处理' },
-  syncAccount: { kicker: 'CLOUD SYNC', title: '登录并同步', copy: '主屏幕版和 Safari 的登录互不相通。发送邮件后，请复制邮件里的登录链接，再回到这里粘贴登录。', drop: false, confirm: '发送登录邮件' },
+  syncAccount: { kicker: 'CLOUD SYNC', title: '登录并同步', copy: '主屏幕版和 Safari 的登录互不相通。发送邮件后，复制邮件里的登录链接，或复制登录成功后的页面地址，再回到这里粘贴。', drop: false, confirm: '发送登录邮件' },
 };
 
 const modalFieldTemplates = {
@@ -75,7 +75,7 @@ const modalFieldTemplates = {
   refundStock: '<label>退款商品<input value="奔跑 · LOVE LOVE LOVE 单人款" /></label><div class="field-grid"><label>退款数量<input value="1" inputmode="numeric" /></label><label>退款金额<input value="79.00" inputmode="decimal" /></label></div><label>退款原因<input value="资金安排调整" /></label>',
   itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="style-type-block"><span>这件周边有哪些款式</span><input data-item-field="styleType" type="hidden" value="single" /><div class="style-type-options"><button type="button" data-style-type="single"><strong>单人款</strong><small>选择实际有款的成员</small></button><button type="button" data-style-type="family"><strong>家族款</strong><small>不区分成员</small></button><button type="button" data-style-type="both"><strong>两种都有</strong><small>价格和限购分开记</small></button></div></div><div class="field-grid"><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" /></label><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" /></label></div><label>发货状态<input data-item-field="status" /></label><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>实际有单人款的成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count></small></span></div><p class="member-picker-help">只勾选这件周边实际包含的成员。</p><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div></div>',
   orderDetail: '<label>当前处理<select data-order-detail-field="stage"><option value="待处理">待处理</option><option value="已发货">已发货</option><option value="已收款">已收款</option><option value="已完成">已完成</option></select></label><div class="field-grid"><label>物流单号<input data-order-detail-field="tracking" placeholder="闲鱼订单发货后填写" /></label><label>实际邮费<input data-order-detail-field="postage" placeholder="0.00" inputmode="decimal" /></label></div><div class="field-grid"><label>代拍收款<input data-order-detail-field="revenue" inputmode="decimal" /></label><label>收货地址<input data-order-detail-field="address" /></label></div><label>备注 <input data-order-detail-field="note" placeholder="选填" /></label>',
-  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录邮件”<br />2. 在邮件里长按登录按钮，选择“复制链接”，不要直接点开<br />3. 回到这里粘贴链接并登录</div><div class="sync-link-block"><label>邮件登录链接<input data-sync-field="magicLink" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="长按粘贴完整链接" /></label><button class="secondary-button sync-link-button" type="button" data-sync-link-login>使用粘贴的链接登录</button></div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
+  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录邮件”<br />2. 在邮件里长按登录按钮，选择“复制链接”，不要直接点开<br />3. 回到这里粘贴链接并登录</div><div class="sync-link-block"><label>登录链接或登录后的地址<input data-sync-field="magicLink" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="长按粘贴完整链接" /></label><button class="secondary-button sync-link-button" type="button" data-sync-link-login>使用粘贴的链接登录</button></div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
 };
 
 function switchPage(page) {
@@ -1020,30 +1020,70 @@ async function sendSyncLink(email) {
 }
 
 async function loginWithCopiedLink(rawLink) {
-  let link;
-  try {
-    link = new URL(rawLink.trim());
-  } catch {
-    showToast('请粘贴邮件里完整的登录链接');
-    return false;
-  }
-  if (link.origin !== SUPABASE_URL || link.pathname !== '/auth/v1/verify') {
-    showToast('这不是蓝账本的登录链接，请重新复制');
-    return false;
-  }
-  const tokenHash = link.searchParams.get('token') || link.searchParams.get('token_hash');
-  const type = link.searchParams.get('type') || 'magiclink';
-  if (!tokenHash || !['magiclink', 'email'].includes(type)) {
-    showToast('登录链接不完整，请重新发送邮件');
+  const normalized = String(rawLink || '').trim().replace(/&amp;/gi, '&');
+  const candidates = normalized.match(/https?:\/\/[^\s<>"']+/gi) || [];
+  const links = [];
+  const seenLinks = new Set();
+  const addCandidate = (candidate) => {
+    const cleaned = candidate.replace(/[),.;!?]+$/, '');
+    if (seenLinks.has(cleaned)) return;
+    seenLinks.add(cleaned);
+    let parsed;
+    try { parsed = new URL(cleaned); } catch { return; }
+    links.push(parsed);
+    parsed.searchParams.forEach((value) => {
+      if (/^https?:\/\//i.test(value)) addCandidate(value);
+    });
+  };
+  candidates.forEach(addCandidate);
+  const projectHost = new URL(SUPABASE_URL).hostname;
+  const appHost = new URL(APP_URL).hostname;
+  const link = links.find((candidate) => candidate.hostname === projectHost || candidate.hostname === appHost);
+  if (!link) {
+    showToast('没有找到蓝账本登录地址，请复制完整链接后再粘贴');
     return false;
   }
   const button = modalFields.querySelector('[data-sync-link-login]');
   button.disabled = true;
   button.textContent = '正在登录…';
-  const { data, error } = await cloudClient.auth.verifyOtp({ token_hash: tokenHash, type });
+  let data;
+  let error;
+  if (link.hostname === appHost && link.hash.includes('access_token=')) {
+    const sessionParams = new URLSearchParams(link.hash.slice(1));
+    const accessToken = sessionParams.get('access_token');
+    const refreshToken = sessionParams.get('refresh_token');
+    if (!accessToken || !refreshToken) {
+      button.disabled = false;
+      button.textContent = '使用粘贴的链接登录';
+      showToast('登录地址不完整，请重新复制');
+      return false;
+    }
+    ({ data, error } = await cloudClient.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    }));
+  } else if (link.hostname === projectHost && link.pathname.replace(/\/$/, '') === '/auth/v1/verify') {
+    const tokenHash = link.searchParams.get('token_hash') || link.searchParams.get('token');
+    const type = link.searchParams.get('type') || 'magiclink';
+    if (!tokenHash || !['magiclink', 'email'].includes(type)) {
+      button.disabled = false;
+      button.textContent = '使用粘贴的链接登录';
+      showToast('登录链接不完整，请重新发送邮件');
+      return false;
+    }
+    ({ data, error } = await cloudClient.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type === 'magiclink' ? 'email' : type,
+    }));
+  } else {
+    button.disabled = false;
+    button.textContent = '使用粘贴的链接登录';
+    showToast('请粘贴邮件里的 Sign in 链接，或登录成功后的蓝账本地址');
+    return false;
+  }
   button.disabled = false;
   button.textContent = '使用粘贴的链接登录';
-  if (error || !data.session?.user) {
+  if (error || !data?.session?.user) {
     showToast('链接已使用或已过期，请重新发送');
     return false;
   }
