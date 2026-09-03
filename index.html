@@ -139,7 +139,7 @@
         <div class="modal-kicker" id="modalKicker">QUICK ADD</div>
         <h2 id="modalTitle">新增周边</h2>
         <p class="modal-copy" id="modalCopy">先把通知交给我，名称、价格和限购信息可以稍后确认。</p>
-        <div class="modal-dropzone" id="modalDropzone"><div class="drop-icon">↑</div><strong>拖入通知截图</strong><span id="dropzoneFileName">或点击选择图片 / 粘贴文字</span><button class="drop-action" type="button">选择文件</button><input id="noticeFile" type="file" accept="image/*,.txt,.pdf" hidden /></div>
+        <div class="modal-dropzone" id="modalDropzone"><div class="drop-icon">↑</div><strong>拖入通知截图</strong><span id="dropzoneFileName">可一次选择多张图片，识别后会自动预填</span><button class="drop-action" type="button">选择图片</button><input id="noticeFile" type="file" accept="image/*" multiple hidden /></div>
         <div class="modal-fields" id="modalFields"><label>周边名称<input value="奔跑 · LOVE LOVE LOVE" /></label><div class="field-grid"><label>首个款式<input value="单人款" /></label><label>官方单价<input value="79" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input value="1" inputmode="numeric" /></label><label>发货状态<input value="现货 · 15天内发货" /></label></div></div>
         <div class="modal-footer"><button class="secondary-button" id="modalCancel">取消</button><button class="primary-button" id="modalConfirm">确认并保存 <span>→</span></button></div>
       </section>
@@ -147,6 +147,7 @@
 
     <div class="toast" id="toast"><span class="toast-check">✓</span><span id="toastText">已保存</span></div>
     <script src="supabase.min.js"></script>
+    <script src="tesseract.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

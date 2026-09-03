@@ -104,6 +104,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(23, 105, 224
 .modal-fields select { width: 100%; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 5px; padding: 10px; font-size: 11px; }
 .stock-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: end; }
 .sync-account-note { color: var(--muted); background: #f5f8fd; border: 1px solid #dce5f3; border-radius: 6px; padding: 11px 12px; font-size: 10px; line-height: 1.65; }
+.family-fields { display: grid; gap: 12px; padding-top: 13px; border-top: 1px solid var(--line); }
+.family-fields.is-hidden { display: none; }
+.family-fields-title { color: var(--blue-dark); font-size: 10px; font-weight: 800; }
+.ocr-progress { color: var(--blue); font-size: 10px; line-height: 1.5; }
 .sync-signout { margin-top: 2px; }
 #syncPill[data-sync-state="syncing"] i, #profileSync[data-sync-state="syncing"] i { background: #e2a64d; animation: syncPulse 1s ease-in-out infinite; }
 #syncPill[data-sync-state="synced"] i, #profileSync[data-sync-state="synced"] i { background: var(--green); }
