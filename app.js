@@ -61,7 +61,7 @@ const modalModes = {
   refundStock: { kicker: 'CANCEL OFFICIAL ORDER', title: '退款并移除库存', copy: '只适用于官方尚未发货的商品。退款后，库存数量和垫付金额会同步扣除。', drop: false, confirm: '确认退款' },
   itemDetail: { kicker: 'MERCH DETAIL', title: '周边详情', copy: '额度分配、订单去向和仓库数量都集中在这里。', drop: false, confirm: '保存修改' },
   orderDetail: { kicker: 'ORDER DETAIL', title: '订单详情', copy: '发货、物流和收款可以在同一个页面完成。', drop: false, confirm: '保存处理' },
-  syncAccount: { kicker: 'CLOUD SYNC', title: '登录并同步', copy: '使用同一个邮箱登录手机和电脑，两边的周边、仓库和订单会自动保持一致。', drop: false, confirm: '发送登录链接' },
+  syncAccount: { kicker: 'CLOUD SYNC', title: '登录并同步', copy: '输入邮箱后，去手机邮箱打开登录链接；回到蓝账本看到“云端已同步”才算登录完成。手机和电脑请使用同一个邮箱。', drop: false, confirm: '发送登录链接' },
 };
 
 const modalFieldTemplates = {
@@ -73,7 +73,7 @@ const modalFieldTemplates = {
   refundStock: '<label>退款商品<input value="奔跑 · LOVE LOVE LOVE 单人款" /></label><div class="field-grid"><label>退款数量<input value="1" inputmode="numeric" /></label><label>退款金额<input value="79.00" inputmode="decimal" /></label></div><label>退款原因<input value="资金安排调整" /></label>',
   itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="field-grid"><label>款式类型<select data-item-field="styleType"><option value="single">单人款</option><option value="family">家族款</option><option value="both">单人款 + 家族款</option></select></label><label>官方单价<input data-item-field="price" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 每款限购<input data-item-field="limit" inputmode="numeric" /></label><label>成员范围<input data-item-field="memberScope" /></label></div><label>发货状态<input data-item-field="status" /></label><label>单人款套装内容<input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="按通知填写" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="按通知填写" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="按通知填写" /></label></div></div>',
   orderDetail: '<label>当前处理<select data-order-detail-field="stage"><option value="待处理">待处理</option><option value="已发货">已发货</option><option value="已收款">已收款</option><option value="已完成">已完成</option></select></label><div class="field-grid"><label>物流单号<input data-order-detail-field="tracking" placeholder="闲鱼订单发货后填写" /></label><label>实际邮费<input data-order-detail-field="postage" placeholder="0.00" inputmode="decimal" /></label></div><div class="field-grid"><label>代拍收款<input data-order-detail-field="revenue" inputmode="decimal" /></label><label>收货地址<input data-order-detail-field="address" /></label></div><label>备注 <input data-order-detail-field="note" placeholder="选填" /></label>',
-  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>登录链接会发送到这个邮箱。手机和电脑请使用同一个邮箱。</div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
+  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录链接”<br />2. 打开手机邮箱里的邮件<br />3. 点邮件中的登录链接，再回到蓝账本</div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
 };
 
 function switchPage(page) {
@@ -890,7 +890,7 @@ function populateSyncAccountForm() {
     modalCopy.textContent = '周边、仓库和订单会自动上传；另一台设备使用同一邮箱登录即可同步。';
     emailInput.value = cloudUser.email || '';
     emailInput.readOnly = true;
-    message.textContent = '当前账号已连接。页面打开时和每次修改后都会自动同步。';
+    message.textContent = '当前账号已连接。页面打开、切回前台和每次修改后都会自动同步；也可以点击下方立即同步。';
     signout.hidden = false;
     modalConfirm.innerHTML = '立即同步 <span>→</span>';
   }
@@ -1122,8 +1122,8 @@ modalConfirm.addEventListener('click', async () => {
       showToast(`发送失败：${error.message}`);
       return;
     }
-    modalFields.querySelector('[data-sync-message]').textContent = '登录链接已发送，请打开邮箱并点击链接。登录成功后会自动回到蓝账本。';
-    showToast('登录链接已发送到邮箱');
+    modalFields.querySelector('[data-sync-message]').innerHTML = '登录链接已发送。请直接在这台手机的邮箱 App 打开邮件并点击链接；回到蓝账本后，顶部会显示“云端已同步”。<br /><br />没有收到邮件时，请检查垃圾邮箱。';
+    showToast('登录链接已发送，请到邮箱完成登录');
     return;
   }
   closeModal();
