@@ -127,12 +127,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(23, 105, 224
 .member-choice.selected { color: var(--blue-dark); background: var(--blue-soft); border-color: #9fb7df; }
 .ocr-progress { color: var(--blue); font-size: 10px; line-height: 1.5; }
 .sync-signout { margin-top: 2px; }
+.sync-link-block { display: grid; gap: 8px; padding-top: 2px; }
+.sync-link-block[hidden] { display: none; }
+.sync-link-button { justify-self: start; }
 #syncPill[data-sync-state="syncing"] i, #profileSync[data-sync-state="syncing"] i { background: #e2a64d; animation: syncPulse 1s ease-in-out infinite; }
 #syncPill[data-sync-state="synced"] i, #profileSync[data-sync-state="synced"] i { background: var(--green); }
 #syncPill[data-sync-state="error"] i, #profileSync[data-sync-state="error"] i { background: var(--coral); }
 @keyframes syncPulse { 50% { opacity: .35; } }
 
 @media (max-width: 520px) {
+  input, select, textarea, .modal-fields input, .modal-fields select, .search-wrap input { font-size: 16px; }
   .modal-backdrop { align-items: flex-start; overflow-y: auto; padding: 10px; }
   .modal { width: 100%; max-width: 100%; max-height: none; min-height: calc(100dvh - 20px); margin: 0; padding: 22px 16px calc(18px + env(safe-area-inset-bottom)); border-radius: 9px; }
   .modal h2 { padding-right: 30px; font-size: 22px; }
