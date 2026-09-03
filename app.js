@@ -23,6 +23,7 @@ let cloudApplying = false;
 let cloudSyncing = false;
 let cloudSyncQueued = false;
 let lastCloudUpdatedAt = null;
+let cloudChannel = null;
 
 const FAMILY_VARIANT_KEY = 'blue-ledger.family-variant';
 const ITEM_PROFILE_KEY = 'blue-ledger.item-profile';
@@ -42,6 +43,7 @@ const DEFAULT_ITEM_PROFILE = {
   limit: '1',
   status: '官方现货',
   memberScope: '15 位成员均有对应款式',
+  members: TF4_MEMBERS,
   contents: '明信片×15、亚克力别针×1、撕拉片×2、NFC卡套×1、拍立得×1、小卡×2',
 };
 let familyVariant = loadFamilyVariant();
@@ -53,7 +55,7 @@ let stock = loadStoredValue(STOCK_KEY, []).map((item) => (
 ));
 
 const modalModes = {
-  newItem: { kicker: 'NEW MERCH', title: '添加新周边', copy: '先录入周边名称、单人款价格和限购数量；已添加的周边可从卡片右上角编辑。', drop: true, confirm: '保存新周边' },
+  newItem: { kicker: 'NEW MERCH', title: '添加新周边', copy: '上传通知截图可预填资料；单人款只勾选实际有款的成员，后续下单时只会显示这些成员。', drop: true, confirm: '保存新周边' },
   addFamily: { kicker: 'ADD VARIANT', title: '添加家族款', copy: '家族款与单人款分别计价、计算库存和盈亏，不需要选择成员。', drop: false, confirm: '保存家族款' },
   newOrder: { kicker: 'ORDER', title: '新增代拍订单', copy: '选择买家、周边和成员；选择家族款时会自动带出家族款价格。', drop: false, confirm: '创建订单' },
   newStock: { kicker: 'OFFICIAL PURCHASE', title: '记录官方购买', copy: '选择周边和成员后记录囤货或自留；这一步不会创建买家订单。', drop: false, confirm: '加入仓库' },
@@ -65,13 +67,13 @@ const modalModes = {
 };
 
 const modalFieldTemplates = {
-  newItem: '<label>周边名称<input data-item-field="name" /></label><div class="field-grid"><label>款式类型<select data-item-field="styleType"><option value="single">单人款</option><option value="family">家族款</option><option value="both">单人款 + 家族款</option></select></label><label>官方单价<input data-item-field="price" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 每款限购<input data-item-field="limit" inputmode="numeric" /></label><label>发货状态<input data-item-field="status" /></label></div><label>成员范围<input data-item-field="memberScope" /></label><label>单人款套装内容<input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="按通知填写" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="按通知填写" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="按通知填写" /></label></div></div>',
+  newItem: '<label>周边名称<input data-item-field="name" placeholder="例如：奔跑 · LOVE LOVE LOVE" /></label><div class="field-grid"><label>款式类型<select data-item-field="styleType"><option value="single">仅单人款</option><option value="family">仅家族款</option><option value="both">单人款 + 家族款</option></select></label><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" placeholder="元" /></label></div><div class="field-grid"><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" placeholder="份数" /></label><label>发货状态<input data-item-field="status" placeholder="例如：官方待发货" /></label></div><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>单人款有哪些成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count>未选择</small></span></div><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" placeholder="选填，例如：小卡、明信片" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div></div>',
   addFamily: '<label>所属周边<input data-family-field="owner" readonly /></label><div class="field-grid"><label>款式类型<input value="家族款" readonly /></label><label>官方单价<input data-family-field="price" placeholder="按官方通知填写" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input data-family-field="limit" placeholder="按官方通知填写" inputmode="numeric" /></label><label>发货状态<input data-family-field="status" placeholder="例如：现货" /></label></div><label>套装内容<input data-family-field="contents" placeholder="填写家族款实际包含的周边" /></label>',
   newOrder: '<label>买家昵称<input data-order-field="buyer" placeholder="填写闲鱼或微信昵称" /></label><div class="field-grid"><label>选择周边<select data-order-field="merch"></select></label><label>选择成员 / 家族款<select data-order-field="member"></select></label></div><div class="field-grid"><label>购买数量<input data-order-field="quantity" value="1" inputmode="numeric" /></label><label>官方单价<input data-order-field="cost" inputmode="decimal" readonly /></label></div><div class="field-grid"><label>方式<select data-order-field="method"><option value="垫付">垫付</option><option value="提确">提确</option></select></label><label>交易平台<select data-order-field="platform"><option value="闲鱼">闲鱼</option><option value="微信">微信</option></select></label></div><label>代拍收款<input data-order-field="revenue" placeholder="例如：99" inputmode="decimal" /></label><label>收货地址<input data-order-field="address" placeholder="闲鱼拍下后粘贴地址" /></label>',
   newStock: '<div class="field-grid"><label>选择周边<select data-stock-field="merch"></select></label><label>选择成员 / 家族款<select data-stock-field="member"></select></label></div><div class="field-grid"><label>购买数量<input data-stock-field="quantity" value="1" inputmode="numeric" /></label><label>去向<select data-stock-field="intent"><option value="囤货">囤货</option><option value="自留">自留</option></select></label></div><div class="field-grid"><label>当前状态<select data-stock-field="status"><option value="官方待发货">官方待发货</option><option value="已到家">已到家</option></select></label><label>官方单价<input data-stock-field="cost" readonly /></label></div>',
   sellStock: '<label>选择现货<select data-sale-field="stockId"></select></label><div class="field-grid"><label>买家昵称<input data-sale-field="buyer" /></label><label>卖出数量<input data-sale-field="quantity" value="1" inputmode="numeric" /></label></div><div class="field-grid"><label>成交金额<input data-sale-field="revenue" inputmode="decimal" /></label><label>实际邮费<input data-sale-field="postage" value="0" inputmode="decimal" /></label></div><div class="field-grid"><label>交易平台<select data-sale-field="platform"><option value="闲鱼">闲鱼</option><option value="微信">微信</option></select></label><label>库存成本<input data-sale-field="cost" readonly /></label></div><label>买家地址<input data-sale-field="address" placeholder="从闲鱼订单粘贴" /></label>',
   refundStock: '<label>退款商品<input value="奔跑 · LOVE LOVE LOVE 单人款" /></label><div class="field-grid"><label>退款数量<input value="1" inputmode="numeric" /></label><label>退款金额<input value="79.00" inputmode="decimal" /></label></div><label>退款原因<input value="资金安排调整" /></label>',
-  itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="field-grid"><label>款式类型<select data-item-field="styleType"><option value="single">单人款</option><option value="family">家族款</option><option value="both">单人款 + 家族款</option></select></label><label>官方单价<input data-item-field="price" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 每款限购<input data-item-field="limit" inputmode="numeric" /></label><label>成员范围<input data-item-field="memberScope" /></label></div><label>发货状态<input data-item-field="status" /></label><label>单人款套装内容<input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="按通知填写" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="按通知填写" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="按通知填写" /></label></div></div>',
+  itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="field-grid"><label>款式类型<select data-item-field="styleType"><option value="single">仅单人款</option><option value="family">仅家族款</option><option value="both">单人款 + 家族款</option></select></label><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" /></label></div><div class="field-grid"><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" /></label><label>发货状态<input data-item-field="status" /></label></div><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>单人款有哪些成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count></small></span></div><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div></div>',
   orderDetail: '<label>当前处理<select data-order-detail-field="stage"><option value="待处理">待处理</option><option value="已发货">已发货</option><option value="已收款">已收款</option><option value="已完成">已完成</option></select></label><div class="field-grid"><label>物流单号<input data-order-detail-field="tracking" placeholder="闲鱼订单发货后填写" /></label><label>实际邮费<input data-order-detail-field="postage" placeholder="0.00" inputmode="decimal" /></label></div><div class="field-grid"><label>代拍收款<input data-order-detail-field="revenue" inputmode="decimal" /></label><label>收货地址<input data-order-detail-field="address" /></label></div><label>备注 <input data-order-detail-field="note" placeholder="选填" /></label>',
   syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录链接”<br />2. 打开手机邮箱里的邮件<br />3. 点邮件中的登录链接，再回到蓝账本</div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
 };
@@ -232,6 +234,32 @@ async function connectCloudUser(user, options = {}) {
   cloudUser = user;
   setSyncStatus('syncing');
   await loadCloudLedger(options);
+  subscribeToCloudChanges();
+}
+
+function subscribeToCloudChanges() {
+  if (!cloudClient || !cloudUser) return;
+  if (cloudChannel) cloudClient.removeChannel(cloudChannel);
+  cloudChannel = cloudClient
+    .channel(`blue-ledger-${cloudUser.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: CLOUD_TABLE,
+      filter: `user_id=eq.${cloudUser.id}`,
+    }, (change) => {
+      const next = change.new;
+      if (!next?.payload || next.updated_at === lastCloudUpdatedAt || cloudSyncing) return;
+      lastCloudUpdatedAt = next.updated_at;
+      applyCloudPayload(next.payload);
+      showToast('已收到另一台设备的更新');
+    })
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        // The periodic pull remains available when realtime is disabled on the project.
+        console.warn('Cloud realtime unavailable', status);
+      }
+    });
 }
 
 async function initCloudSync() {
@@ -254,6 +282,8 @@ async function initCloudSync() {
         const isNewLogin = cloudUser?.id !== session.user.id;
         await connectCloudUser(session.user, { quiet: !isNewLogin });
       } else {
+        if (cloudChannel) cloudClient?.removeChannel(cloudChannel);
+        cloudChannel = null;
         cloudUser = null;
         lastCloudUpdatedAt = null;
         setSyncStatus('local');
@@ -296,6 +326,19 @@ function getItemById(itemId = MERCH_ID) {
   return allItems().find((item) => item.id === itemId) || allItems()[0];
 }
 
+function itemMembers(item) {
+  if (!itemHasSingle(item)) return [];
+  return Array.isArray(item.members) && item.members.length
+    ? item.members.filter((member) => TF4_MEMBERS.includes(member))
+    : TF4_MEMBERS;
+}
+
+function memberScopeLabel(members) {
+  if (!members.length) return '未选择成员';
+  if (members.length === TF4_MEMBERS.length) return '15 位成员均有对应款式';
+  return `${members.length} 位成员有对应款式`;
+}
+
 function persistExtraItems() {
   persist(EXTRA_ITEMS_KEY, extraItems);
 }
@@ -313,9 +356,10 @@ function renderItemProfile() {
     const stored = stock.filter((entry) => entry.merchId === item.id && entry.intent === '囤货').reduce((sum, entry) => sum + entry.quantity, 0);
     const self = stock.filter((entry) => entry.merchId === item.id && entry.intent === '自留').reduce((sum, entry) => sum + entry.quantity, 0);
     const recorded = sold + stored + self;
+    const members = itemMembers(item);
     const quota = styleType === 'family'
       ? Math.max(1, Number(item.familyVariant?.limit || item.limit || 1))
-      : Math.max(1, TF4_MEMBERS.length * Number(item.limit || 1));
+      : Math.max(1, members.length * Number(item.limit || 1));
     const soldWidth = Math.min(100, sold / quota * 100);
     const stockWidth = Math.min(100 - soldWidth, stored / quota * 100);
     const selfWidth = Math.min(100 - soldWidth - stockWidth, self / quota * 100);
@@ -326,9 +370,9 @@ function renderItemProfile() {
     const familyMarkup = hasFamily
       ? `<button class="variant-option family-recorded" type="button" data-family-item="${item.id}"><span>家族款 · 已录入</span><strong>¥${formatPrice(family.price)}<small>/套</small></strong><small>每 ID 限购 ${escapeHtml(family.limit)} 份 · ${escapeHtml(family.status || '状态待补')}</small></button>`
       : `<button class="variant-option add-variant" type="button" data-family-item="${item.id}"><span>＋ 添加</span><strong>家族款</strong><small>可单独填写价格和限购</small></button>`;
-    const singleMarkup = hasSingle ? `<button class="variant-option active" type="button"><span>单人款 · 共 15 款</span><strong>¥${formatPrice(item.price)}<small>/套</small></strong><small>${escapeHtml(item.memberScope)} · 每 ID 每款限购 ${escapeHtml(item.limit)} 份</small></button>` : '';
+    const singleMarkup = hasSingle ? `<button class="variant-option active" type="button"><span>单人款 · 共 ${members.length} 款</span><strong>¥${formatPrice(item.price)}<small>/套</small></strong><small>${escapeHtml(memberScopeLabel(members))} · 每 ID 每款限购 ${escapeHtml(item.limit)} 份</small></button>` : '';
     const memberLine = hasSingle
-      ? '<div class="member-line"><span class="member-mini">15</span><span>单人款 · 全员均有</span><span class="member-status">下单时再选择具体成员</span></div>'
+      ? `<div class="member-line"><span class="member-mini">${members.length}</span><span>单人款 · 可选成员</span><span class="member-status" title="${escapeHtml(members.join('、'))}">${escapeHtml(members.slice(0, 4).join('、'))}${members.length > 4 ? ' 等' : ''}</span></div>`
       : '<div class="member-line"><span class="member-mini purple-mini">家</span><span>家族款 · 不区分成员</span><span class="member-status">下单时直接选择家族款</span></div>';
     const contents = hasSingle ? item.contents : family?.contents;
     return `<article class="full-item-card"><div class="large-item-visual ${item.id === MERCH_ID ? 'product-visual' : 'letter-thumb'}">${visual}<span class="status-chip in-stock">${escapeHtml(item.status)}</span></div><div class="full-item-body"><div class="full-item-top"><div><p class="eyebrow">TF 家族 · 已录入 ${hasFamily && hasSingle ? 2 : 1} 个款式</p><h2>${escapeHtml(item.name)}</h2></div><button class="more-button" type="button" data-edit-item="${item.id}" aria-label="编辑周边" title="编辑周边">⋯</button></div><div class="variant-switch">${singleMarkup}${familyMarkup}</div><div class="allocation-bar"><span class="alloc-sold" style="width:${soldWidth}%"></span><span class="alloc-stock" style="width:${stockWidth}%"></span><span class="alloc-self" style="width:${selfWidth}%"></span></div><div class="allocation-legend"><span><i class="legend-dot sold"></i>已出售 ${sold}</span><span><i class="legend-dot stock"></i>囤货 ${stored}</span><span><i class="legend-dot self"></i>自留 ${self}</span><strong>已记录 ${recorded} 份</strong></div>${memberLine}<div class="kit-contents"><span>${hasSingle ? '单人款' : '家族款'}套装内含</span><strong>${escapeHtml(contents || '待补充')}</strong></div></div></article>`;
@@ -337,13 +381,13 @@ function renderItemProfile() {
   const recent = items[0];
   const recentHasSingle = itemHasSingle(recent);
   document.querySelector('#recentItemName').textContent = recent.name;
-  document.querySelector('#recentItemMeta').textContent = `${recentHasSingle ? '单人款共 15 款' : '家族款'} · ${recent.status}`;
+  document.querySelector('#recentItemMeta').textContent = `${recentHasSingle ? `单人款共 ${itemMembers(recent).length} 款` : '家族款'} · ${recent.status}`;
   const prices = [recentHasSingle ? Number(recent.price) : Number(recent.familyVariant?.price), recent.familyVariant ? Number(recent.familyVariant.price) : Number(recent.price)].filter(Number.isFinite);
   document.querySelector('#recentItemPrice').innerHTML = `¥${formatPrice(Math.min(...prices))}<span>${recent.familyVariant ? '起' : '/套'}</span>`;
 }
 
 function populateItemForm(profile = null) {
-  const values = profile || { ...DEFAULT_ITEM_PROFILE, name: '', price: '', status: '', contents: '' };
+  const values = profile || { ...DEFAULT_ITEM_PROFILE, name: '', price: '', limit: '', status: '', contents: '', members: [] };
   Object.entries(values).forEach(([field, value]) => {
     const input = modalFields.querySelector(`[data-item-field="${field}"]`);
     if (input) input.value = value;
@@ -355,18 +399,45 @@ function populateItemForm(profile = null) {
       if (input) input.value = value;
     });
   }
+  renderMemberPicker(values.members || (profile ? TF4_MEMBERS : []));
   syncItemStyleFields();
+}
+
+function renderMemberPicker(selectedMembers) {
+  const picker = modalFields.querySelector('[data-member-picker]');
+  if (!picker) return;
+  const selected = new Set(selectedMembers);
+  picker.innerHTML = TF4_MEMBERS.map((member) => `<button type="button" class="member-choice ${selected.has(member) ? 'selected' : ''}" data-member-choice="${escapeHtml(member)}">${escapeHtml(member)}</button>`).join('');
+  updateMemberPickerCount();
+}
+
+function updateMemberPickerCount() {
+  const count = modalFields.querySelectorAll('[data-member-choice].selected').length;
+  const counter = modalFields.querySelector('[data-member-count]');
+  if (counter) counter.textContent = count ? `已选 ${count} 人` : '未选择';
 }
 
 function syncItemStyleFields() {
   const selector = modalFields.querySelector('[data-item-field="styleType"]');
   const familyFields = modalFields.querySelector('[data-family-fields]');
+  const memberBlock = modalFields.querySelector('[data-member-picker-block]');
   if (!selector || !familyFields) return;
   familyFields.classList.toggle('is-hidden', selector.value !== 'both');
+  memberBlock?.classList.toggle('is-hidden', selector.value === 'family');
+  const isFamilyOnly = selector.value === 'family';
+  const labels = [
+    ['[data-price-label]', '单价'],
+    ['[data-limit-label]', '每 ID 限购'],
+    ['[data-contents-label]', '套装内容'],
+  ];
+  labels.forEach(([query, suffix]) => {
+    const label = modalFields.querySelector(query);
+    if (label) label.textContent = `${isFamilyOnly ? '家族款' : '单人款'}${suffix}`;
+  });
 }
 
 function readItemProfile() {
-  const profile = Object.fromEntries(Object.keys(DEFAULT_ITEM_PROFILE).map((field) => [field, modalFields.querySelector(`[data-item-field="${field}"]`).value.trim()]));
+  const profile = Object.fromEntries(['name', 'styleType', 'price', 'limit', 'status', 'contents'].map((field) => [field, modalFields.querySelector(`[data-item-field="${field}"]`).value.trim()]));
   const styleType = profile.styleType || 'single';
   const price = Number(profile.price);
   const limit = Number(profile.limit);
@@ -374,6 +445,13 @@ function readItemProfile() {
     showToast('请检查商品名称、价格和限购数量');
     return null;
   }
+  const members = [...modalFields.querySelectorAll('[data-member-choice].selected')].map((button) => button.dataset.memberChoice);
+  if (styleType !== 'family' && !members.length) {
+    showToast('请勾选实际有单人款的成员');
+    return null;
+  }
+  profile.members = members;
+  profile.memberScope = styleType === 'family' ? 'TF 家族，不区分成员' : memberScopeLabel(members);
   let familyVariant = null;
   if (styleType === 'family') {
     familyVariant = { price: profile.price, limit: profile.limit, status: profile.status, contents: profile.contents };
@@ -537,23 +615,35 @@ async function recognizeNoticeFiles(files) {
     return;
   }
   fileName.classList.add('ocr-progress');
-  fileName.textContent = `正在识别 ${imageFiles.length} 张截图…`;
+  fileName.textContent = `正在加载中文识别组件（首次可能需要半分钟）…`;
+  let worker;
+  let timedOut = false;
   try {
     if (!window.Tesseract?.createWorker) throw new Error('OCR 服务未载入');
-    const worker = await window.Tesseract.createWorker('chi_sim+eng', 1, {
+    const workerPromise = window.Tesseract.createWorker('chi_sim+eng', 1, {
       workerPath: './worker.min.js',
       corePath: './tesseract-core-simd-lstm.wasm.js',
       langPath: 'https://tessdata.projectnaptha.com/4.0.0',
       logger: (message) => {
-        if (message.status === 'recognizing text') fileName.textContent = `正在识别第 ${Math.round((message.progress || 0) * imageFiles.length) + 1} / ${imageFiles.length} 张截图…`;
+        if (message.status === 'recognizing text') {
+          const current = Math.min(imageFiles.length, Math.max(1, Math.ceil((message.progress || 0) * imageFiles.length)));
+          fileName.textContent = `正在识别第 ${current} / ${imageFiles.length} 张截图…`;
+        }
       },
     });
+    workerPromise.then((lateWorker) => { if (timedOut) lateWorker.terminate(); }).catch(() => {});
+    worker = await Promise.race([
+      workerPromise,
+      new Promise((_, reject) => window.setTimeout(() => {
+        timedOut = true;
+        reject(new Error('OCR model load timed out'));
+      }, 35000)),
+    ]);
     const results = [];
     for (const file of imageFiles) {
       const result = await worker.recognize(file);
       results.push(result.data.text || '');
     }
-    await worker.terminate();
     applyNoticeFields(noticeTextToFields(results.join('\n')));
     fileName.classList.remove('ocr-progress');
     fileName.textContent = `已选择 ${imageFiles.length} 张截图，识别结果已预填，可继续修改`;
@@ -561,8 +651,10 @@ async function recognizeNoticeFiles(files) {
   } catch (error) {
     console.error('Notice OCR failed', error);
     fileName.classList.remove('ocr-progress');
-    fileName.textContent = `已选择 ${imageFiles.length} 张截图，请手动填写字段`;
-    showToast('截图识别暂时失败，请检查网络或手动填写');
+    fileName.textContent = `已选择 ${imageFiles.length} 张截图，识别未完成，可重选图片再试`;
+    showToast(timedOut ? '中文识别组件加载超时，请检查网络后重试' : '识别暂时失败，请保持网络后重试');
+  } finally {
+    if (worker) await worker.terminate();
   }
 }
 
@@ -580,7 +672,7 @@ function getMerchOptions() {
 
 function memberOptionsMarkup(merchId = MERCH_ID) {
   const item = getItemById(merchId);
-  const members = itemHasSingle(item) ? TF4_MEMBERS.map((member) => `<option value="${escapeHtml(member)}">${escapeHtml(member)}</option>`).join('') : '';
+  const members = itemMembers(item).map((member) => `<option value="${escapeHtml(member)}">${escapeHtml(member)}</option>`).join('');
   const family = itemHasFamily(item) ? '<option value="family">家族款（TF 家族）</option>' : '';
   return `<option value="">请选择成员或家族款</option>${members}${family}`;
 }
@@ -1004,6 +1096,22 @@ document.querySelector('#stockList').addEventListener('click', (event) => {
 document.querySelector('#modalClose').addEventListener('click', closeModal);
 document.querySelector('#modalCancel').addEventListener('click', closeModal);
 modalFields.addEventListener('click', (event) => {
+  if (event.target.closest('[data-members-select-all]')) {
+    modalFields.querySelectorAll('[data-member-choice]').forEach((button) => button.classList.add('selected'));
+    updateMemberPickerCount();
+    return;
+  }
+  if (event.target.closest('[data-members-clear]')) {
+    modalFields.querySelectorAll('[data-member-choice]').forEach((button) => button.classList.remove('selected'));
+    updateMemberPickerCount();
+    return;
+  }
+  const memberChoice = event.target.closest('[data-member-choice]');
+  if (memberChoice) {
+    memberChoice.classList.toggle('selected');
+    updateMemberPickerCount();
+    return;
+  }
   if (event.target.closest('[data-cloud-signout]')) {
     if (cloudClient) cloudClient.auth.signOut();
     cloudUser = null;
@@ -1132,6 +1240,7 @@ modalConfirm.addEventListener('click', async () => {
 document.querySelector('.drop-action').addEventListener('click', () => document.querySelector('#noticeFile').click());
 document.querySelector('#noticeFile').addEventListener('change', (event) => {
   if (event.target.files.length) recognizeNoticeFiles(event.target.files);
+  event.target.value = '';
 });
 
 document.querySelectorAll('.segment').forEach((button) => button.addEventListener('click', () => {
