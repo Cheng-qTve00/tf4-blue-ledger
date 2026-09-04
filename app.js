@@ -82,7 +82,7 @@ const modalFieldTemplates = {
   refundStock: '<label>退款商品<input value="奔跑 · LOVE LOVE LOVE 单人款" /></label><div class="field-grid"><label>退款数量<input value="1" inputmode="numeric" /></label><label>退款金额<input value="79.00" inputmode="decimal" /></label></div><label>退款原因<input value="资金安排调整" /></label>',
   itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="style-type-block"><span>这件周边有哪些款式</span><input data-item-field="styleType" type="hidden" value="single" /><div class="style-type-options"><button type="button" data-style-type="single"><strong>单人款</strong><small>选择实际有款的成员</small></button><button type="button" data-style-type="family"><strong>家族款</strong><small>不区分成员</small></button><button type="button" data-style-type="both"><strong>两种都有</strong><small>价格和限购分开记</small></button></div></div><div class="field-grid"><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" /></label><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" /></label></div><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>实际有单人款的成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count></small></span></div><p class="member-picker-help">只勾选这件周边实际包含的成员。</p><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div>',
   orderDetail: '<label>当前处理<select data-order-detail-field="stage"><option value="待处理">待处理</option><option value="已发货">已发货</option><option value="已收款">已收款</option><option value="已完成">已完成</option></select></label><div class="field-grid"><label>物流单号<input data-order-detail-field="tracking" placeholder="闲鱼订单发货后填写" /></label><label>实际邮费<input data-order-detail-field="postage" placeholder="0.00" inputmode="decimal" /></label></div><div class="field-grid"><label>代拍收款<input data-order-detail-field="revenue" inputmode="decimal" /></label><label>收货地址<input data-order-detail-field="address" /></label></div><label>备注 <input data-order-detail-field="note" placeholder="选填" /></label>',
-  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录邮件”<br />2. 在邮件里长按登录按钮，选择“复制链接”，不要直接点开<br />3. 回到这里粘贴链接并登录</div><div class="sync-link-block"><label>登录链接或登录后的地址<input data-sync-field="magicLink" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="长按粘贴完整链接" /></label><button class="secondary-button sync-link-button" type="button" data-sync-link-login>使用粘贴的链接登录</button></div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
+  syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录邮件”<br />2. 在邮件正文里长按蓝色 Sign in 按钮，选择“复制链接地址”<br />3. 回到这里粘贴，不要复制 QQ 邮箱顶部的页面地址</div><div class="sync-link-block"><label>登录链接或登录后的地址<input data-sync-field="magicLink" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="长按粘贴完整链接" /></label><button class="secondary-button sync-link-button" type="button" data-sync-link-login>使用粘贴的链接登录</button></div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
 };
 
 function switchPage(page) {
@@ -605,16 +605,16 @@ function saveFamilyVariant() {
 }
 
 function noticeTextToFields(rawText) {
-  const text = rawText.replace(/\r/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
+  const text = rawText.replace(/\r/g, '\n').replace(/[ \t]+/g, ' ').replace(/[|｜]/g, ' ').replace(/\n{2,}/g, '\n').trim();
   const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
   const titleMatch = text.match(/[《「]([^》」]{2,60})[》」]/);
   const nameLine = lines.find((line) => /(LOVE|周边|单人款|家族款)/i.test(line) && !/购买须知|官方售卖渠道|商品以内|收货地址/.test(line));
-  const name = titleMatch?.[1]?.trim() || nameLine?.replace(/^本次.*?家族[：:]/, '').trim();
-  const singlePriceMatch = text.match(/(?:单人款|售价|售卖价|价格)[^\d¥￥]{0,16}[¥￥]?\s*(\d+(?:\.\d+)?)/i);
-  const anyPriceMatch = text.match(/[¥￥]\s*(\d+(?:\.\d+)?)|(?:售价|售卖价|价格)[^\d]{0,12}(\d+(?:\.\d+)?)/i);
-  const familyPriceMatch = text.match(/家族款[^\d]{0,20}[¥￥]?\s*(\d+(?:\.\d+)?)/i);
-  const limitMatch = text.match(/(?:每个ID|每\s*ID|限购)[^\d]{0,12}(\d+)\s*(?:份|套|个)?/i);
-  const familyLimitMatch = text.match(/家族款[^\d]{0,30}(?:限购)?[^\d]{0,8}(\d+)\s*(?:份|套|个)?/i);
+  const name = titleMatch?.[1]?.trim() || nameLine?.replace(/^本次.*?家族[：:]/, '').replace(/[，,].*$/, '').trim();
+  const singlePriceMatch = text.match(/(?:单人款|售价|售卖价|价格)[^\d¥￥]{0,30}[¥￥]?\s*(\d+(?:\.\d+)?)/i);
+  const anyPriceMatch = text.match(/[¥￥]\s*(\d+(?:\.\d+)?)|(?:售价|售卖价|价格)[^\d]{0,20}(\d+(?:\.\d+)?)/i);
+  const familyPriceMatch = text.match(/家族款[^\d]{0,30}(?:售价|售卖价|价格)?[^\d¥￥]{0,12}[¥￥]?\s*(\d+(?:\.\d+)?)/i);
+  const limitMatch = text.match(/(?:每个\s*ID|每\s*ID|限购)[^\d]{0,18}(\d+)\s*(?:份|套|个)?/i);
+  const familyLimitMatch = text.match(/家族款[^\d]{0,40}(?:每个\s*ID|每\s*ID|限购)?[^\d]{0,12}(\d+)\s*(?:份|套|个)?/i);
   const contentLine = lines.find((line) => /(明信片|亚克力|撕拉|NFC|拍立得|小卡|徽章|钥匙扣)/i.test(line));
   const hasSingle = /单人款/.test(text);
   const hasFamily = /家族款/.test(text);
@@ -655,6 +655,20 @@ function applyNoticeFields(parsed) {
   }
 }
 
+async function prepareNoticeImage(file) {
+  const bitmap = await createImageBitmap(file);
+  const maxDimension = 2200;
+  const scale = Math.min(1.7, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.filter = 'grayscale(1) contrast(1.65) brightness(1.08)';
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas;
+}
+
 async function recognizeNoticeFiles(files) {
   const fileName = document.querySelector('#dropzoneFileName');
   const imageFiles = [...files].filter((file) => file.type.startsWith('image/'));
@@ -669,10 +683,11 @@ async function recognizeNoticeFiles(files) {
   let timeoutId;
   try {
     if (!window.Tesseract?.createWorker) throw new Error('OCR 服务未载入');
+    const assetUrl = (path) => new URL(path, new URL('./', window.location.href)).href;
     const workerPromise = window.Tesseract.createWorker('chi_sim+eng', 1, {
-      workerPath: './worker.min.js',
-      corePath: './tesseract-core-simd-lstm.wasm.js',
-      langPath: './tessdata',
+      workerPath: assetUrl('worker.min.js'),
+      corePath: assetUrl('tesseract-core-simd-lstm.wasm.js'),
+      langPath: assetUrl('tessdata'),
       logger: (message) => {
         if (message.status === 'recognizing text') {
           const current = Math.min(imageFiles.length, Math.max(1, Math.ceil((message.progress || 0) * imageFiles.length)));
@@ -689,15 +704,25 @@ async function recognizeNoticeFiles(files) {
       }, 35000); }),
     ]);
     window.clearTimeout(timeoutId);
+    if (worker.setParameters) {
+      await worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
+    }
     const results = [];
     for (const file of imageFiles) {
-      const result = await worker.recognize(file);
+      const result = await worker.recognize(await prepareNoticeImage(file));
       results.push(result.data.text || '');
     }
-    applyNoticeFields(noticeTextToFields(results.join('\n')));
+    const parsed = noticeTextToFields(results.join('\n'));
+    const recognizedFields = [parsed.name, parsed.price, parsed.limit, parsed.familyPrice, parsed.familyLimit, parsed.contents].filter(Boolean).length + (parsed.members?.length || 0);
+    applyNoticeFields(parsed);
     fileName.classList.remove('ocr-progress');
-    fileName.textContent = `已选择 ${imageFiles.length} 张截图，识别结果已预填，可继续修改`;
-    showToast(`已识别 ${imageFiles.length} 张通知截图`);
+    if (recognizedFields) {
+      fileName.textContent = `已选择 ${imageFiles.length} 张截图，识别到的内容已预填，可继续修改`;
+      showToast(`已识别并预填 ${recognizedFields} 项内容`);
+    } else {
+      fileName.textContent = `已选择 ${imageFiles.length} 张截图，但没有识别出可填内容`;
+      showToast('图片已上传，但文字太小或不清晰，请换一张更清楚的截图');
+    }
   } catch (error) {
     console.error('Notice OCR failed', error);
     fileName.classList.remove('ocr-progress');
@@ -1063,7 +1088,7 @@ async function sendSyncLink(email) {
     showToast(`发送失败：${error.message}`);
     return false;
   }
-  modalFields.querySelector('[data-sync-message]').innerHTML = '邮件已发送。<strong>不要直接点开登录按钮</strong>，请长按按钮复制链接，再回到这里粘贴。';
+  modalFields.querySelector('[data-sync-message]').innerHTML = '邮件已发送。<strong>请长按邮件正文里的蓝色 Sign in 按钮</strong>，选择“复制链接地址”，不要复制 QQ 邮箱顶部的页面地址。';
   modalConfirm.innerHTML = '重新发送登录邮件 <span>→</span>';
   showToast('登录邮件已发送，请复制邮件里的链接');
   return true;
@@ -1090,7 +1115,10 @@ async function loginWithCopiedLink(rawLink) {
   const appHost = new URL(APP_URL).hostname;
   const link = links.find((candidate) => candidate.hostname === projectHost || candidate.hostname === appHost);
   if (!link) {
-    showToast('没有找到蓝账本登录地址，请复制完整链接后再粘贴');
+    const isMailPage = links.some((candidate) => /(^|\.)mail\.qq\.com$/i.test(candidate.hostname));
+    showToast(isMailPage
+      ? '这是 QQ 邮箱页面地址，请长按邮件正文里的 Sign in 按钮复制链接地址'
+      : '没有找到蓝账本登录地址，请复制 Sign in 按钮的完整链接');
     return false;
   }
   const button = modalFields.querySelector('[data-sync-link-login]');
