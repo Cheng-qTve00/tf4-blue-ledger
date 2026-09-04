@@ -1206,12 +1206,18 @@ document.querySelector('#itemCards').addEventListener('click', (event) => {
   const editButton = event.target.closest('[data-edit-item]');
   const familyButton = event.target.closest('[data-family-item]');
   if (editButton) {
+    event.preventDefault();
+    event.stopPropagation();
     pendingItemId = editButton.dataset.editItem;
     openModal('itemDetail');
+    return;
   }
   if (familyButton) {
+    event.preventDefault();
+    event.stopPropagation();
     pendingItemId = familyButton.dataset.familyItem;
     openModal('addFamily');
+    return;
   }
 });
 
@@ -1328,10 +1334,10 @@ modalFields.addEventListener('click', (event) => {
   }
   const removeItemButton = event.target.closest('[data-remove-item]');
   if (removeItemButton) {
-    if (removeItemButton.dataset.confirmed !== 'true') {
-      removeItemButton.dataset.confirmed = 'true';
-      removeItemButton.textContent = '再次点击确认删除';
-      showToast('已有订单和库存会保留，只删除周边资料');
+    event.preventDefault();
+    event.stopPropagation();
+    const confirmed = window.confirm('确定删除这个周边吗？已有订单和库存会保留，只删除周边资料。');
+    if (!confirmed) {
       return;
     }
     const itemId = pendingItemId;
