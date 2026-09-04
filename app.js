@@ -859,10 +859,15 @@ function renderStock() {
     return;
   }
   list.innerHTML = visibleStock.map((item) => {
+    const merch = getItemById(item.merchId);
+    const merchName = item.merchName || merch?.name || itemProfile.name;
+    const thumbnail = item.merchId === MERCH_ID
+      ? `<img src="love-love-love-cover.png" alt="${escapeHtml(merchName)}" />`
+      : `<span aria-hidden="true">${escapeHtml(merchName.slice(0, 1))}</span>`;
     const actions = item.status === '已到家'
       ? `<button class="stock-action refund-action" data-stock-remove="${item.id}">移除</button>`
       : `<button class="stock-action" data-stock-arrived="${item.id}">已到家</button><button class="stock-action refund-action" data-stock-remove="${item.id}">退款</button>`;
-    return `<article class="stock-row" data-stock-id="${item.id}"><div class="stock-thumb product-thumb"><img src="love-love-love-cover.png" alt="${escapeHtml(item.merchName || itemProfile.name)}" /></div><div class="stock-main"><div class="stock-heading"><strong>${escapeHtml(item.merchName || itemProfile.name)} · ${escapeHtml(item.variantLabel)}</strong><span class="stock-state ${item.status === '已到家' ? 'in-home' : 'on-way'}">${escapeHtml(item.status)}</span></div><div class="stock-sub">${item.member ? `${escapeHtml(item.member)} · ` : ''}${escapeHtml(item.intent)}</div><div class="stock-foot"><span>${item.quantity} 套 <em>× ¥${formatPrice(item.unitCost)}</em></span><span class="stock-cost">成本 ¥${formatMoney(item.unitCost * item.quantity)}</span></div></div><div class="stock-row-actions">${actions}</div></article>`;
+    return `<article class="stock-row" data-stock-id="${item.id}"><div class="stock-thumb ${item.merchId === MERCH_ID ? 'product-thumb' : 'letter-thumb'}">${thumbnail}</div><div class="stock-main"><div class="stock-heading"><strong>${escapeHtml(merchName)} · ${escapeHtml(item.variantLabel)}</strong><span class="stock-state ${item.status === '已到家' ? 'in-home' : 'on-way'}">${escapeHtml(item.status)}</span></div><div class="stock-sub">${item.member ? `${escapeHtml(item.member)} · ` : ''}${escapeHtml(item.intent)}</div><div class="stock-foot"><span>${item.quantity} 套 <em>× ¥${formatPrice(item.unitCost)}</em></span><span class="stock-cost">成本 ¥${formatMoney(item.unitCost * item.quantity)}</span></div></div><div class="stock-row-actions">${actions}</div></article>`;
   }).join('');
 }
 
