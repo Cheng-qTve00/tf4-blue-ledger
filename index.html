@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260903-3" />
   </head>
   <body>
     <div class="app-shell">
@@ -105,7 +105,7 @@
                 <div class="recent-list">
                   <button class="item-row" data-open-item="love-love-love">
                     <div class="item-thumb product-thumb"><img src="love-love-love-cover.png" alt="奔跑 LOVE LOVE LOVE 单人款" /></div>
-                    <span class="item-copy"><strong id="recentItemName">奔跑 · LOVE LOVE LOVE</strong><small id="recentItemMeta">单人款共 15 款 · 官方现货</small></span><span class="item-amount" id="recentItemPrice">¥79<span>/套</span></span>
+                    <span class="item-copy"><strong id="recentItemName">奔跑 · LOVE LOVE LOVE</strong><small id="recentItemMeta">单人款共 15 款</small></span><span class="item-amount" id="recentItemPrice">¥79<span>/套</span></span>
                   </button>
                 </div>
               </section>
@@ -114,7 +114,7 @@
 
           <section class="page-section" id="itemsPage">
             <div class="page-intro compact-intro"><div><p class="eyebrow">MERCHANDISE</p><h1>周边</h1><p class="intro-copy">每个批次的额度和去向，一眼看清。</p></div><div class="order-entry-actions"><button class="secondary-entry" data-open-modal="newItem"><span>＋</span> 添加新周边</button><button class="primary-button" data-open-modal="newOrder"><span>＋</span> 有人要了，去拍下</button></div></div>
-            <div class="section-toolbar"><div class="segmented"><button class="segment active">全部 <b id="itemAllCount">1</b></button><button class="segment">进行中 <b id="itemActiveCount">1</b></button><button class="segment">已完成 <b>0</b></button></div><button class="filter-button">筛选 <span>⌄</span></button></div>
+            <div class="item-count-summary">共 <strong id="itemAllCount">1</strong> 个周边</div>
             <div class="item-cards" id="itemCards"></div>
           </section>
 
@@ -143,7 +143,7 @@
         <h2 id="modalTitle">新增周边</h2>
         <p class="modal-copy" id="modalCopy">先把通知交给我，名称、价格和限购信息可以稍后确认。</p>
         <div class="modal-dropzone" id="modalDropzone"><div class="drop-icon">↑</div><strong>拖入通知截图</strong><span id="dropzoneFileName">可一次选择多张图片，识别后会自动预填</span><button class="drop-action" type="button">选择图片</button><input id="noticeFile" type="file" accept="image/*" multiple hidden /></div>
-        <div class="modal-fields" id="modalFields"><label>周边名称<input value="奔跑 · LOVE LOVE LOVE" /></label><div class="field-grid"><label>首个款式<input value="单人款" /></label><label>官方单价<input value="79" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input value="1" inputmode="numeric" /></label><label>发货状态<input value="现货 · 15天内发货" /></label></div></div>
+        <div class="modal-fields" id="modalFields"><label>周边名称<input value="奔跑 · LOVE LOVE LOVE" /></label><div class="field-grid"><label>首个款式<input value="单人款" /></label><label>官方单价<input value="79" inputmode="decimal" /></label></div><label>每 ID 限购<input value="1" inputmode="numeric" /></label></div>
         <div class="modal-footer"><button class="secondary-button" id="modalCancel">取消</button><button class="primary-button" id="modalConfirm">确认并保存 <span>→</span></button></div>
       </section>
     </div>
@@ -151,6 +151,6 @@
     <div class="toast" id="toast"><span class="toast-check">✓</span><span id="toastText">已保存</span></div>
     <script src="supabase.min.js"></script>
     <script src="tesseract.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20260903-3"></script>
   </body>
 </html>

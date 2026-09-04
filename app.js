@@ -28,6 +28,7 @@ let cloudChannel = null;
 const FAMILY_VARIANT_KEY = 'blue-ledger.family-variant';
 const ITEM_PROFILE_KEY = 'blue-ledger.item-profile';
 const EXTRA_ITEMS_KEY = 'blue-ledger.extra-items';
+const DELETED_ITEMS_KEY = 'blue-ledger.deleted-items';
 const ORDERS_KEY = 'blue-ledger.orders';
 const STOCK_KEY = 'blue-ledger.stock';
 const SUPABASE_URL = 'https://yjhopazkhcetzgeusjqw.supabase.co';
@@ -41,16 +42,22 @@ const DEFAULT_ITEM_PROFILE = {
   styleType: 'single',
   price: '79',
   limit: '1',
-  status: '官方现货',
   memberScope: '15 位成员均有对应款式',
   members: TF4_MEMBERS,
   contents: '明信片×15、亚克力别针×1、撕拉片×2、NFC卡套×1、拍立得×1、小卡×2',
 };
+const ITEM_STYLE_TYPES = ['single', 'family', 'both'];
 let familyVariant = loadFamilyVariant();
 let itemProfile = loadStoredValue(ITEM_PROFILE_KEY, DEFAULT_ITEM_PROFILE);
 let extraItems = loadStoredValue(EXTRA_ITEMS_KEY, []);
+if (!Array.isArray(extraItems)) extraItems = [];
+let deletedItemIds = loadStoredValue(DELETED_ITEMS_KEY, []);
+if (!Array.isArray(deletedItemIds)) deletedItemIds = [];
 let orders = loadStoredValue(ORDERS_KEY, []);
-let stock = loadStoredValue(STOCK_KEY, []).map((item) => (
+if (!Array.isArray(orders)) orders = [];
+let storedStock = loadStoredValue(STOCK_KEY, []);
+if (!Array.isArray(storedStock)) storedStock = [];
+let stock = storedStock.map((item) => (
   item.status === '运输中' ? { ...item, status: '官方待发货' } : item
 ));
 
@@ -68,12 +75,12 @@ const modalModes = {
 
 const modalFieldTemplates = {
   newItem: '<label>周边名称<input data-item-field="name" placeholder="例如：奔跑 · LOVE LOVE LOVE" /></label><div class="style-type-block"><span>这次有哪些款式</span><input data-item-field="styleType" type="hidden" value="single" /><div class="style-type-options"><button type="button" data-style-type="single"><strong>单人款</strong><small>选择实际有款的成员</small></button><button type="button" data-style-type="family"><strong>家族款</strong><small>不区分成员</small></button><button type="button" data-style-type="both"><strong>两种都有</strong><small>价格和限购分开记</small></button></div></div><div class="field-grid"><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" placeholder="元" /></label><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" placeholder="份数" /></label></div><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>实际有单人款的成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count>未选择</small></span></div><p class="member-picker-help">不默认全员。只勾选官方通知中明确有款的成员。</p><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" placeholder="选填，例如：小卡、明信片" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div>',
-  addFamily: '<label>所属周边<input data-family-field="owner" readonly /></label><div class="field-grid"><label>款式类型<input value="家族款" readonly /></label><label>官方单价<input data-family-field="price" placeholder="按官方通知填写" inputmode="decimal" /></label></div><div class="field-grid"><label>每 ID 限购<input data-family-field="limit" placeholder="按官方通知填写" inputmode="numeric" /></label><label>发货状态<input data-family-field="status" placeholder="例如：现货" /></label></div><label>套装内容<input data-family-field="contents" placeholder="填写家族款实际包含的周边" /></label>',
+  addFamily: '<label>所属周边<input data-family-field="owner" readonly /></label><div class="field-grid"><label>款式类型<input value="家族款" readonly /></label><label>官方单价<input data-family-field="price" placeholder="按官方通知填写" inputmode="decimal" /></label></div><label>每 ID 限购<input data-family-field="limit" placeholder="按官方通知填写" inputmode="numeric" /></label><label>套装内容<input data-family-field="contents" placeholder="填写家族款实际包含的周边" /></label>',
   newOrder: '<label>买家昵称<input data-order-field="buyer" placeholder="填写闲鱼或微信昵称" /></label><div class="field-grid"><label>选择周边<select data-order-field="merch"></select></label><label>选择成员 / 家族款<select data-order-field="member"></select></label></div><div class="field-grid"><label>购买数量<input data-order-field="quantity" value="1" inputmode="numeric" /></label><label>官方单价<input data-order-field="cost" inputmode="decimal" readonly /></label></div><div class="field-grid"><label>方式<select data-order-field="method"><option value="垫付">垫付</option><option value="提确">提确</option></select></label><label>交易平台<select data-order-field="platform"><option value="闲鱼">闲鱼</option><option value="微信">微信</option></select></label></div><label>代拍收款<input data-order-field="revenue" placeholder="例如：99" inputmode="decimal" /></label><label>收货地址<input data-order-field="address" placeholder="闲鱼拍下后粘贴地址" /></label>',
   newStock: '<div class="field-grid"><label>选择周边<select data-stock-field="merch"></select></label><label>选择成员 / 家族款<select data-stock-field="member"></select></label></div><div class="field-grid"><label>购买数量<input data-stock-field="quantity" value="1" inputmode="numeric" /></label><label>去向<select data-stock-field="intent"><option value="囤货">囤货</option><option value="自留">自留</option></select></label></div><div class="field-grid"><label>当前状态<select data-stock-field="status"><option value="官方待发货">官方待发货</option><option value="已到家">已到家</option></select></label><label>官方单价<input data-stock-field="cost" readonly /></label></div>',
   sellStock: '<label>选择现货<select data-sale-field="stockId"></select></label><div class="field-grid"><label>买家昵称<input data-sale-field="buyer" /></label><label>卖出数量<input data-sale-field="quantity" value="1" inputmode="numeric" /></label></div><div class="field-grid"><label>成交金额<input data-sale-field="revenue" inputmode="decimal" /></label><label>实际邮费<input data-sale-field="postage" value="0" inputmode="decimal" /></label></div><div class="field-grid"><label>交易平台<select data-sale-field="platform"><option value="闲鱼">闲鱼</option><option value="微信">微信</option></select></label><label>库存成本<input data-sale-field="cost" readonly /></label></div><label>买家地址<input data-sale-field="address" placeholder="从闲鱼订单粘贴" /></label>',
   refundStock: '<label>退款商品<input value="奔跑 · LOVE LOVE LOVE 单人款" /></label><div class="field-grid"><label>退款数量<input value="1" inputmode="numeric" /></label><label>退款金额<input value="79.00" inputmode="decimal" /></label></div><label>退款原因<input value="资金安排调整" /></label>',
-  itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="style-type-block"><span>这件周边有哪些款式</span><input data-item-field="styleType" type="hidden" value="single" /><div class="style-type-options"><button type="button" data-style-type="single"><strong>单人款</strong><small>选择实际有款的成员</small></button><button type="button" data-style-type="family"><strong>家族款</strong><small>不区分成员</small></button><button type="button" data-style-type="both"><strong>两种都有</strong><small>价格和限购分开记</small></button></div></div><div class="field-grid"><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" /></label><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" /></label></div><label>发货状态<input data-item-field="status" /></label><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>实际有单人款的成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count></small></span></div><p class="member-picker-help">只勾选这件周边实际包含的成员。</p><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><div class="field-grid"><label>家族款状态<input data-family-field="status" placeholder="例如：现货" /></label><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div></div>',
+  itemDetail: '<label>周边名称<input data-item-field="name" /></label><div class="style-type-block"><span>这件周边有哪些款式</span><input data-item-field="styleType" type="hidden" value="single" /><div class="style-type-options"><button type="button" data-style-type="single"><strong>单人款</strong><small>选择实际有款的成员</small></button><button type="button" data-style-type="family"><strong>家族款</strong><small>不区分成员</small></button><button type="button" data-style-type="both"><strong>两种都有</strong><small>价格和限购分开记</small></button></div></div><div class="field-grid"><label><span data-price-label>单人款单价</span><input data-item-field="price" inputmode="decimal" /></label><label><span data-limit-label>单人款每 ID 限购</span><input data-item-field="limit" inputmode="numeric" /></label></div><div class="member-picker-block" data-member-picker-block><div class="member-picker-heading"><span>实际有单人款的成员</span><span class="member-picker-actions"><button type="button" data-members-select-all>全选</button><button type="button" data-members-clear>清空</button><small data-member-count></small></span></div><p class="member-picker-help">只勾选这件周边实际包含的成员。</p><div class="member-picker" data-member-picker></div></div><label><span data-contents-label>单人款套装内容</span><input data-item-field="contents" /></label><div class="family-fields" data-family-fields><div class="family-fields-title">家族款资料</div><div class="field-grid"><label>家族款单价<input data-family-field="price" inputmode="decimal" placeholder="元" /></label><label>家族款限购<input data-family-field="limit" inputmode="numeric" placeholder="份数" /></label></div><label>家族款内容<input data-family-field="contents" placeholder="选填" /></label></div>',
   orderDetail: '<label>当前处理<select data-order-detail-field="stage"><option value="待处理">待处理</option><option value="已发货">已发货</option><option value="已收款">已收款</option><option value="已完成">已完成</option></select></label><div class="field-grid"><label>物流单号<input data-order-detail-field="tracking" placeholder="闲鱼订单发货后填写" /></label><label>实际邮费<input data-order-detail-field="postage" placeholder="0.00" inputmode="decimal" /></label></div><div class="field-grid"><label>代拍收款<input data-order-detail-field="revenue" inputmode="decimal" /></label><label>收货地址<input data-order-detail-field="address" /></label></div><label>备注 <input data-order-detail-field="note" placeholder="选填" /></label>',
   syncAccount: '<label>登录邮箱<input data-sync-field="email" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="填写常用邮箱" /></label><div class="sync-account-note" data-sync-message>1. 点击“发送登录邮件”<br />2. 在邮件里长按登录按钮，选择“复制链接”，不要直接点开<br />3. 回到这里粘贴链接并登录</div><div class="sync-link-block"><label>登录链接或登录后的地址<input data-sync-field="magicLink" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="长按粘贴完整链接" /></label><button class="secondary-button sync-link-button" type="button" data-sync-link-login>使用粘贴的链接登录</button></div><button class="remove-variant-button sync-signout" type="button" data-cloud-signout hidden>退出云端账号</button>',
 };
@@ -118,10 +125,11 @@ function persist(key, value) {
 
 function cloudPayload() {
   return {
-    version: 1,
+    version: 2,
     itemProfile,
     familyVariant,
     extraItems,
+    deletedItemIds,
     orders,
     stock,
   };
@@ -146,6 +154,7 @@ function saveCloudPayloadLocally(payload) {
   if (payload.familyVariant) window.localStorage.setItem(FAMILY_VARIANT_KEY, JSON.stringify(payload.familyVariant));
   else window.localStorage.removeItem(FAMILY_VARIANT_KEY);
   window.localStorage.setItem(EXTRA_ITEMS_KEY, JSON.stringify(payload.extraItems));
+  window.localStorage.setItem(DELETED_ITEMS_KEY, JSON.stringify(payload.deletedItemIds || []));
   window.localStorage.setItem(ORDERS_KEY, JSON.stringify(payload.orders));
   window.localStorage.setItem(STOCK_KEY, JSON.stringify(payload.stock));
 }
@@ -156,6 +165,7 @@ function applyCloudPayload(payload) {
   itemProfile = payload.itemProfile && typeof payload.itemProfile === 'object' ? payload.itemProfile : itemProfile;
   familyVariant = payload.familyVariant && typeof payload.familyVariant === 'object' ? payload.familyVariant : null;
   extraItems = Array.isArray(payload.extraItems) ? payload.extraItems : [];
+  deletedItemIds = Array.isArray(payload.deletedItemIds) ? payload.deletedItemIds : deletedItemIds;
   orders = Array.isArray(payload.orders) ? payload.orders : [];
   stock = Array.isArray(payload.stock) ? payload.stock.map((item) => (
     item.status === '运输中' ? { ...item, status: '官方待发货' } : item
@@ -307,7 +317,8 @@ function updateCount(name, value) {
 }
 
 function allItems() {
-  return [{ id: MERCH_ID, ...itemProfile, familyVariant }, ...extraItems];
+  return [{ id: MERCH_ID, ...itemProfile, familyVariant }, ...extraItems]
+    .filter((item) => !deletedItemIds.includes(item.id));
 }
 
 function itemStyleType(item) {
@@ -323,7 +334,7 @@ function itemHasFamily(item) {
 }
 
 function getItemById(itemId = MERCH_ID) {
-  return allItems().find((item) => item.id === itemId) || allItems()[0];
+  return allItems().find((item) => item.id === itemId) || null;
 }
 
 function itemMembers(item) {
@@ -342,11 +353,22 @@ function persistExtraItems() {
   persist(EXTRA_ITEMS_KEY, extraItems);
 }
 
+function persistDeletedItems() {
+  persist(DELETED_ITEMS_KEY, deletedItemIds);
+}
+
 function renderItemProfile() {
   const items = allItems();
   const cards = document.querySelector('#itemCards');
   document.querySelector('#itemAllCount').textContent = items.length;
-  document.querySelector('#itemActiveCount').textContent = items.length;
+  document.querySelectorAll('[data-open-modal="newOrder"], [data-open-modal="newStock"]').forEach((button) => {
+    button.disabled = items.length === 0;
+  });
+  if (!items.length) {
+    cards.innerHTML = '<div class="empty-state page-empty"><span>▣</span><strong>还没有周边</strong><small>点击“添加新周边”录入第一件</small></div>';
+    document.querySelector('.recent-list .item-row').hidden = true;
+    return;
+  }
   cards.innerHTML = items.map((item) => {
     const styleType = itemStyleType(item);
     const hasSingle = itemHasSingle(item);
@@ -367,26 +389,29 @@ function renderItemProfile() {
       ? `<img src="love-love-love-cover.png" alt="${escapeHtml(item.name)}商品详情" />`
       : `<span aria-hidden="true">${escapeHtml(item.name.slice(0, 1))}</span>`;
     const familyMarkup = hasFamily
-      ? `<button class="variant-option family-recorded" type="button" data-family-item="${item.id}"><span>家族款 · 已录入</span><strong>¥${formatPrice(family.price)}<small>/套</small></strong><small>每 ID 限购 ${escapeHtml(family.limit)} 份 · ${escapeHtml(family.status || '状态待补')}</small></button>`
+      ? `<button class="variant-option family-recorded" type="button" data-family-item="${item.id}"><span>家族款 · 已录入</span><strong>¥${formatPrice(family.price)}<small>/套</small></strong><small>每 ID 限购 ${escapeHtml(family.limit)} 份</small></button>`
       : `<button class="variant-option add-variant" type="button" data-family-item="${item.id}"><span>＋ 添加</span><strong>家族款</strong><small>可单独填写价格和限购</small></button>`;
     const singleMarkup = hasSingle ? `<button class="variant-option active" type="button"><span>单人款 · 共 ${members.length} 款</span><strong>¥${formatPrice(item.price)}<small>/套</small></strong><small>${escapeHtml(memberScopeLabel(members))} · 每 ID 每款限购 ${escapeHtml(item.limit)} 份</small></button>` : '';
     const memberLine = hasSingle
       ? `<div class="member-line"><span class="member-mini">${members.length}</span><span>单人款 · 可选成员</span><span class="member-status" title="${escapeHtml(members.join('、'))}">${escapeHtml(members.slice(0, 4).join('、'))}${members.length > 4 ? ' 等' : ''}</span></div>`
       : '<div class="member-line"><span class="member-mini purple-mini">家</span><span>家族款 · 不区分成员</span><span class="member-status">下单时直接选择家族款</span></div>';
     const contents = hasSingle ? item.contents : family?.contents;
-    return `<article class="full-item-card"><div class="large-item-visual ${item.id === MERCH_ID ? 'product-visual' : 'letter-thumb'}">${visual}<span class="status-chip in-stock">${escapeHtml(item.status)}</span></div><div class="full-item-body"><div class="full-item-top"><div><p class="eyebrow">TF 家族 · 已录入 ${hasFamily && hasSingle ? 2 : 1} 个款式</p><h2>${escapeHtml(item.name)}</h2></div><button class="more-button" type="button" data-edit-item="${item.id}" aria-label="编辑周边" title="编辑周边">⋯</button></div><div class="variant-switch">${singleMarkup}${familyMarkup}</div><div class="allocation-bar"><span class="alloc-sold" style="width:${soldWidth}%"></span><span class="alloc-stock" style="width:${stockWidth}%"></span><span class="alloc-self" style="width:${selfWidth}%"></span></div><div class="allocation-legend"><span><i class="legend-dot sold"></i>已出售 ${sold}</span><span><i class="legend-dot stock"></i>囤货 ${stored}</span><span><i class="legend-dot self"></i>自留 ${self}</span><strong>已记录 ${recorded} 份</strong></div>${memberLine}<div class="kit-contents"><span>${hasSingle ? '单人款' : '家族款'}套装内含</span><strong>${escapeHtml(contents || '待补充')}</strong></div></div></article>`;
+    return `<article class="full-item-card"><div class="large-item-visual ${item.id === MERCH_ID ? 'product-visual' : 'letter-thumb'}">${visual}</div><div class="full-item-body"><div class="full-item-top"><div><p class="eyebrow">TF 家族 · 已录入 ${hasFamily && hasSingle ? 2 : 1} 个款式</p><h2>${escapeHtml(item.name)}</h2></div><button class="more-button" type="button" data-edit-item="${item.id}" aria-label="编辑周边" title="编辑周边">⋯</button></div><div class="variant-switch">${singleMarkup}${familyMarkup}</div><div class="allocation-bar"><span class="alloc-sold" style="width:${soldWidth}%"></span><span class="alloc-stock" style="width:${stockWidth}%"></span><span class="alloc-self" style="width:${selfWidth}%"></span></div><div class="allocation-legend"><span><i class="legend-dot sold"></i>已出售 ${sold}</span><span><i class="legend-dot stock"></i>囤货 ${stored}</span><span><i class="legend-dot self"></i>自留 ${self}</span><strong>已记录 ${recorded} 份</strong></div>${memberLine}<div class="kit-contents"><span>${hasSingle ? '单人款' : '家族款'}套装内含</span><strong>${escapeHtml(contents || '待补充')}</strong></div></div></article>`;
   }).join('');
 
   const recent = items[0];
   const recentHasSingle = itemHasSingle(recent);
+  const recentRow = document.querySelector('.recent-list .item-row');
+  recentRow.hidden = false;
+  recentRow.dataset.openItem = recent.id;
   document.querySelector('#recentItemName').textContent = recent.name;
-  document.querySelector('#recentItemMeta').textContent = `${recentHasSingle ? `单人款共 ${itemMembers(recent).length} 款` : '家族款'} · ${recent.status}`;
+  document.querySelector('#recentItemMeta').textContent = recentHasSingle ? `单人款共 ${itemMembers(recent).length} 款` : '家族款';
   const prices = [recentHasSingle ? Number(recent.price) : Number(recent.familyVariant?.price), recent.familyVariant ? Number(recent.familyVariant.price) : Number(recent.price)].filter(Number.isFinite);
   document.querySelector('#recentItemPrice').innerHTML = `¥${formatPrice(Math.min(...prices))}<span>${recent.familyVariant ? '起' : '/套'}</span>`;
 }
 
 function populateItemForm(profile = null) {
-  const values = profile || { ...DEFAULT_ITEM_PROFILE, name: '', price: '', limit: '', status: '', contents: '', members: [] };
+  const values = profile || { ...DEFAULT_ITEM_PROFILE, name: '', price: '', limit: '', contents: '', members: [] };
   Object.entries(values).forEach(([field, value]) => {
     const input = modalFields.querySelector(`[data-item-field="${field}"]`);
     if (input) input.value = value;
@@ -400,6 +425,7 @@ function populateItemForm(profile = null) {
   }
   renderMemberPicker(Array.isArray(values.members) ? values.members : (profile ? itemMembers(profile) : []));
   syncItemStyleFields();
+  if (profile) modalFields.insertAdjacentHTML('beforeend', '<button class="remove-variant-button" type="button" data-remove-item>删除这个周边</button>');
 }
 
 function renderMemberPicker(selectedMembers) {
@@ -421,6 +447,11 @@ function syncItemStyleFields() {
   const familyFields = modalFields.querySelector('[data-family-fields]');
   const memberBlock = modalFields.querySelector('[data-member-picker-block]');
   if (!selector || !familyFields) return;
+  if (!ITEM_STYLE_TYPES.includes(selector.value)) {
+    const selectedButton = modalFields.querySelector('[data-style-type].selected');
+    selector.value = selectedButton?.dataset.styleType || 'single';
+    selector.setAttribute('value', selector.value);
+  }
   familyFields.classList.toggle('is-hidden', selector.value !== 'both');
   memberBlock?.classList.toggle('is-hidden', selector.value === 'family');
   modalFields.querySelectorAll('[data-style-type]').forEach((button) => {
@@ -441,9 +472,11 @@ function syncItemStyleFields() {
 
 function readItemProfile() {
   const readItemField = (field) => modalFields.querySelector(`[data-item-field="${field}"]`)?.value.trim() || '';
-  const profile = Object.fromEntries(['name', 'styleType', 'price', 'limit', 'status', 'contents'].map((field) => [field, readItemField(field)]));
-  if (currentModalMode === 'newItem') profile.status = '官方待发货';
-  const styleType = profile.styleType || 'single';
+  const profile = Object.fromEntries(['name', 'styleType', 'price', 'limit', 'contents'].map((field) => [field, readItemField(field)]));
+  const styleType = ITEM_STYLE_TYPES.includes(profile.styleType)
+    ? profile.styleType
+    : modalFields.querySelector('[data-style-type].selected')?.dataset.styleType || 'single';
+  profile.styleType = styleType;
   const price = Number(profile.price);
   const limit = Number(profile.limit);
   if (!profile.name || !Number.isFinite(price) || price <= 0 || !Number.isInteger(limit) || limit <= 0) {
@@ -459,7 +492,7 @@ function readItemProfile() {
   profile.memberScope = styleType === 'family' ? 'TF 家族，不区分成员' : memberScopeLabel(members);
   let familyVariant = null;
   if (styleType === 'family') {
-    familyVariant = { price: profile.price, limit: profile.limit, status: profile.status, contents: profile.contents };
+    familyVariant = { price: profile.price, limit: profile.limit, contents: profile.contents };
     profile.memberScope = 'TF 家族，不区分成员';
   }
   if (styleType === 'both') {
@@ -472,7 +505,6 @@ function readItemProfile() {
     familyVariant = {
       price: familyPrice,
       limit: familyLimit,
-      status: '官方待发货',
       contents: modalFields.querySelector('[data-family-field="contents"]').value.trim(),
     };
   }
@@ -515,13 +547,20 @@ function saveItemProfile() {
 
 function populateFamilyForm() {
   const item = getItemById(pendingItemId);
+  if (!item) {
+    showToast('周边已不存在，请重新打开');
+    closeModal();
+    return;
+  }
   modalFields.querySelector('[data-family-field="owner"]').value = item.name;
   if (!item.familyVariant) return;
   Object.entries(item.familyVariant).forEach(([field, value]) => {
     const input = modalFields.querySelector(`[data-family-field="${field}"]`);
     if (input) input.value = value;
   });
-  modalFields.insertAdjacentHTML('beforeend', '<button class="remove-variant-button" type="button" data-remove-family>删除家族款</button>');
+  if (itemStyleType(item) !== 'family') {
+    modalFields.insertAdjacentHTML('beforeend', '<button class="remove-variant-button" type="button" data-remove-family>删除家族款</button>');
+  }
 }
 
 function saveFamilyVariant() {
@@ -540,10 +579,13 @@ function saveFamilyVariant() {
     return false;
   }
   const item = getItemById(pendingItemId);
+  if (!item) {
+    showToast('周边已不存在，请重新打开');
+    return false;
+  }
   const nextFamilyVariant = {
     price: priceInput.value.trim(),
     limit: limitInput.value.trim(),
-    status: modalFields.querySelector('[data-family-field="status"]').value.trim(),
     contents: modalFields.querySelector('[data-family-field="contents"]').value.trim(),
   };
   if (item.id === MERCH_ID) {
@@ -584,7 +626,6 @@ function noticeTextToFields(rawText) {
     familyPrice: familyPriceMatch?.[1] || '',
     limit: limitMatch?.[1] || '',
     familyLimit: familyLimitMatch?.[1] || '',
-    status: /现货/.test(text) ? '官方现货' : /待发货|发货/.test(text) ? '官方待发货' : '',
     contents: contentLine || '',
     members,
   };
@@ -599,7 +640,6 @@ function applyNoticeFields(parsed) {
   setItemField('styleType', parsed.styleType);
   setItemField('price', parsed.price);
   setItemField('limit', parsed.limit);
-  setItemField('status', parsed.status);
   setItemField('contents', parsed.contents);
   if (parsed.members?.length) renderMemberPicker(parsed.members);
   syncItemStyleFields();
@@ -671,6 +711,7 @@ async function recognizeNoticeFiles(files) {
 
 function getVariantOptions(merchId = MERCH_ID) {
   const item = getItemById(merchId);
+  if (!item) return [];
   const options = [];
   if (itemHasSingle(item)) options.push({ value: 'single', label: `单人款 · ¥${formatPrice(item.price)}`, cost: Number(item.price) });
   if (itemHasFamily(item)) options.push({ value: 'family', label: `家族款 · ¥${formatPrice(item.familyVariant.price)}`, cost: Number(item.familyVariant.price) });
@@ -683,6 +724,7 @@ function getMerchOptions() {
 
 function memberOptionsMarkup(merchId = MERCH_ID) {
   const item = getItemById(merchId);
+  if (!item) return '<option value="">请先添加周边</option>';
   const members = itemMembers(item).map((member) => `<option value="${escapeHtml(member)}">${escapeHtml(member)}</option>`).join('');
   const family = itemHasFamily(item) ? '<option value="family">家族款（TF 家族）</option>' : '';
   return `<option value="">请选择成员或家族款</option>${members}${family}`;
@@ -702,7 +744,7 @@ function merchOptionsMarkup() {
 
 function selectedVariant(member, merchId = MERCH_ID) {
   const value = member === 'family' ? 'family' : 'single';
-  return getVariantOptions(merchId).find((option) => option.value === value) || getVariantOptions(merchId)[0];
+  return getVariantOptions(merchId).find((option) => option.value === value) || getVariantOptions(merchId)[0] || { value: 'single', label: '', cost: 0 };
 }
 
 function populateOrderForm() {
@@ -740,6 +782,11 @@ function syncStockVariantFields() {
 function saveStock() {
   const merchId = readField('[data-stock-field="merch"]');
   const selectedMember = readField('[data-stock-field="member"]');
+  const merch = getMerchOptions().find((option) => option.value === merchId);
+  if (!merch) {
+    showToast('请先添加周边');
+    return false;
+  }
   const variantInfo = selectedVariant(selectedMember, merchId);
   const variant = variantInfo.value;
   const quantity = Number(readField('[data-stock-field="quantity"]'));
@@ -747,7 +794,6 @@ function saveStock() {
     showToast('请选择周边、成员或家族款，并填写正确数量');
     return false;
   }
-  const merch = getMerchOptions().find((option) => option.value === merchId) || getMerchOptions()[0];
   stock.unshift({ id: `stock-${Date.now()}`, merchId, merchName: merch.label, variant, variantLabel: variantInfo.label, member: variant === 'family' ? '' : selectedMember, quantity, intent: readField('[data-stock-field="intent"]'), status: readField('[data-stock-field="status"]'), unitCost: variantInfo.cost });
   persist(STOCK_KEY, stock);
   renderItemProfile();
@@ -839,6 +885,11 @@ function readField(selector) {
 function saveOrder() {
   const merchId = readField('[data-order-field="merch"]');
   const selectedMember = readField('[data-order-field="member"]');
+  const merch = getMerchOptions().find((option) => option.value === merchId);
+  if (!merch) {
+    showToast('请先添加周边');
+    return false;
+  }
   const variantInfo = selectedVariant(selectedMember, merchId);
   const variant = variantInfo.value;
   const quantity = Number(readField('[data-order-field="quantity"]'));
@@ -853,7 +904,6 @@ function saveOrder() {
     showToast('请填写正确的代拍收款金额');
     return false;
   }
-  const merch = getMerchOptions().find((option) => option.value === merchId) || getMerchOptions()[0];
   orders.unshift({
     id: `order-${Date.now()}`,
     source: 'proxy',
@@ -967,7 +1017,7 @@ function openModal(mode = 'newItem') {
   const config = modalModes[mode] || modalModes.newItem;
   currentModalMode = mode;
   modalKicker.textContent = config.kicker;
-  modalTitle.textContent = mode === 'addFamily' && getItemById(pendingItemId).familyVariant ? '编辑家族款' : config.title;
+  modalTitle.textContent = mode === 'addFamily' && getItemById(pendingItemId)?.familyVariant ? '编辑家族款' : config.title;
   modalCopy.textContent = config.copy;
   modalDropzone.style.display = config.drop ? 'grid' : 'none';
   modalFields.innerHTML = modalFieldTemplates[mode] || '';
@@ -1204,7 +1254,10 @@ modalFields.addEventListener('click', (event) => {
   const styleTypeButton = event.target.closest('[data-style-type]');
   if (styleTypeButton) {
     const styleTypeInput = modalFields.querySelector('[data-item-field="styleType"]');
-    if (styleTypeInput) styleTypeInput.value = styleTypeButton.dataset.styleType;
+    if (styleTypeInput) {
+      styleTypeInput.value = styleTypeButton.dataset.styleType;
+      styleTypeInput.setAttribute('value', styleTypeButton.dataset.styleType);
+    }
     syncItemStyleFields();
     return;
   }
@@ -1245,14 +1298,39 @@ modalFields.addEventListener('click', (event) => {
     loginWithCopiedLink(link);
     return;
   }
+  const removeItemButton = event.target.closest('[data-remove-item]');
+  if (removeItemButton) {
+    if (removeItemButton.dataset.confirmed !== 'true') {
+      removeItemButton.dataset.confirmed = 'true';
+      removeItemButton.textContent = '再次点击确认删除';
+      showToast('已有订单和库存会保留，只删除周边资料');
+      return;
+    }
+    const itemId = pendingItemId;
+    if (itemId === MERCH_ID) {
+      deletedItemIds = [...new Set([...deletedItemIds, MERCH_ID])];
+      persistDeletedItems();
+    } else {
+      extraItems = extraItems.filter((item) => item.id !== itemId);
+      persistExtraItems();
+    }
+    renderItemProfile();
+    closeModal();
+    showToast('周边已删除，已有订单和库存仍保留');
+    return;
+  }
   if (event.target.closest('[data-remove-family]')) {
     if (pendingItemId === MERCH_ID) {
       familyVariant = null;
+      itemProfile.styleType = 'single';
       window.localStorage.removeItem(FAMILY_VARIANT_KEY);
-      queueCloudSync();
+      persist(ITEM_PROFILE_KEY, itemProfile);
     } else {
       const item = extraItems.find((entry) => entry.id === pendingItemId);
-      if (item) item.familyVariant = null;
+      if (item) {
+        item.familyVariant = null;
+        item.styleType = 'single';
+      }
       persistExtraItems();
     }
     renderItemProfile();
